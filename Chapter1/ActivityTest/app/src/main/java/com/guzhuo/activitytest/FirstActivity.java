@@ -1,6 +1,7 @@
 package com.guzhuo.activitytest;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.Menu;
@@ -19,8 +20,8 @@ public class FirstActivity extends AppCompatActivity {
         button1.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-              Intent intent = new Intent("com.guzhuo.activitytest.ACTION_START");
-              intent.addCategory("com.guzhuo.activitytest.MY_CATEGORY");
+              Intent intent = new Intent(Intent.ACTION_DIAL);
+              intent.setData(Uri.parse("tel:10086"));
               startActivity(intent);
             }
         });
