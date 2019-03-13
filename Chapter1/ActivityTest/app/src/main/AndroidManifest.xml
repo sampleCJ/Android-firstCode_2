@@ -17,7 +17,8 @@
                 <data android:scheme="http" />
             </intent-filter>
         </activity>
-        <activity android:name=".SecondActivity">
+        <activity android:name=".SecondActivity"
+            android:launchMode="singleInstance">
             <intent-filter>
                 <action android:name="com.guzhuo.activitytest.ACTION_START" />
 
@@ -27,7 +28,8 @@
         </activity>
         <activity
             android:name=".FirstActivity"
-            android:label="[Manifest-label]This is FirstActivity">
+            android:launchMode="singleTask"
+            android:label="[Manifest-label]this FirstActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
