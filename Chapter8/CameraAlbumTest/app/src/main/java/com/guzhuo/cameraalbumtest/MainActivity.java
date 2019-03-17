@@ -34,6 +34,7 @@ import java.lang.annotation.Target;
 public class MainActivity extends AppCompatActivity {
 
     public static final int TAKE_PHOTO = 1;
+    public static final int CHOOSE_PHOTO = 2;
 
     private ImageView picture;
 
@@ -178,10 +179,19 @@ public class MainActivity extends AppCompatActivity {
         Cursor cursor = getContentResolver().query(uri, null, selection, null, null);
         if (cursor != null) {
             if (cursor.moveToFirst()) {
-                path = cursor.getString(cursor.getColumnIndex(MainStore.Images.Media.DATA));
+                path = cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA));
             }
             cursor.close();
         }
         return path;
+    }
+
+    private void displayImage(String imagePath) {
+        if (imagePath != null) {
+            Bitmap bitmap = BitmapFactory.decodeFile(imagePath);
+            picture.setImageBitmap(bitmap);
+        } else {
+            Toast.makeText(this, "[MainActivity-displayImage()]failed to get image", Toast.LENGTH_SHORT).show();
+        }
     }
 }
