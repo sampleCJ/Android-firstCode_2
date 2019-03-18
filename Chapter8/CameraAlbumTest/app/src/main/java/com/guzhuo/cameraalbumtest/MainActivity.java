@@ -80,6 +80,8 @@ public class MainActivity extends AppCompatActivity {
         chooseFromAlbum.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                // 点击 chooseFromAlbum 按钮，则动态申请 WRITE_EXTERNAL_STAROGE 权限，
+                // 授予程序对 SD 卡读写的能力。
                 if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
                         != PackageManager.PERMISSION_GRANTED) {
                     ActivityCompat.requestPermissions(MainActivity.this, new String[]{ Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
@@ -93,6 +95,7 @@ public class MainActivity extends AppCompatActivity {
     private void openAlbum() {
         Intent intent = new Intent("android.intent.action.GET_CONTENT");
         intent.setType("image/*");
+        // 传回图片时，保证 onActivityResult() 进入 CHOOSE_PHOTO 的 case，以处理图片。
         startActivityForResult(intent, CHOOSE_PHOTO);  // 打开相册
     }
 
@@ -149,8 +152,11 @@ public class MainActivity extends AppCompatActivity {
         if (DocumentsContract.isDocumentUri(this, uri)) {
             // 若 document 类型的Uri，则通过 document id 处理
             String docId = DocumentsContract.getDocumentId(uri);
+            // 若 Uri 的 authority 是 meida 格式，document id 则需再一次解析，
             if ("com.android.providers.media.documents".equals(uri.getAuthority())) {
+                // 通过字符串分割的方法取出后半部分，才能得到真正的数字 id。
                 String id = docId.split(":")[1];  // 解析数字格式的 id
+                // 构建新的 Uri 和条件语句。
                 String selection = MediaStore.Images.Media._ID + "=" + id;
                 imagePath = getImagePath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, selection);
             } else if ("com.android.providers.downloads.documents".equals(uri.getAuthority())) {
