@@ -4,8 +4,8 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -29,15 +29,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         setContentView(R.layout.activity_main);
 
         // 初始化传感器
-        sensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
+        sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         mSensorAccelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         sensorManager.registerListener(this, mSensorAccelerometer, SensorManager.SENSOR_DELAY_UI);
         bindViews();
     }
 
     private void bindViews() {
-        tv_step = (TextView)findViewById(R.id.tv_step);
-        btn_start = (Button)findViewById(R.id.btn_start);
+        tv_step = (TextView) findViewById(R.id.tv_step);
+        btn_start = (Button) findViewById(R.id.btn_start);
         btn_start.setOnClickListener(this);
     }
 
@@ -49,7 +49,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         // 向上加速的状态
         if (motiveState) {
             // 更新峰值
-            if (curValue >= lstValue) lstValue = curValue;
+            if (curValue >= lstValue)
+                lstValue = curValue;
             else {
                 // 检测一次峰值
                 if (Math.abs(curValue - lstValue) > range) {
@@ -62,7 +63,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         // 向下加速的状态
         if (motiveState) {
             // 更新峰值
-            if (curValue <= lstValue) lstValue = curValue;
+            if (curValue <= lstValue)
+                lstValue = curValue;
             else {
                 if (Math.abs(curValue - lstValue) > range) {
                     oriValue = curValue;
