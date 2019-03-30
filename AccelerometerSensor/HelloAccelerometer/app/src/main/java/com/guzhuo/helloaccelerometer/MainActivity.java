@@ -22,14 +22,15 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        tvAcclerometer = (TextView)findViewById(R.id.tv_accelerometer);
+        tvAcclerometer = (TextView) findViewById(R.id.tv_accelerometer);
         // 获取传感器SensorManager对象
-        mSensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
+        mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
     }
 
 
     /**
      * 传感器精度变化时回调
+     *
      * @param sensor
      * @param accuracy
      */
@@ -41,6 +42,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     /**
      * 传感器数据变化时回调
+     *
      * @param event
      */
     @Override
@@ -48,13 +50,24 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         // 判断传感器类别
         switch (event.sensor.getType()) {
             case Sensor.TYPE_ACCELEROMETER:  // 类别：加速度传感器
-                final float alpha = (float)0.8;
+                /**
+                 * 重力加速度可由加速度传感器得到
+                 * 重力属低频成分
+                 * 实现一个简单的一阶低通滤波器，以过滤重力加速度。本质上仍是一个加权平均窗口
+                 * 滤波公式为，Y(n) = alpha * X(n) + (1 - alpha) * Y(n-1)
+                 */
 
+                // alpha 由 t / (t+dT) 得到
+                // t: 滤波器时间常量，为传感器单次采样时间
+                // dT: 采样频率
+                final float alpha = (float) 0.8;
+
+                // 低通过滤器/ 加权平均窗口，分离 xyz 轴上的重力加速度
                 gravity[0] = alpha * gravity[0] + (1 - alpha) * event.values[0];
                 gravity[1] = alpha * gravity[1] + (1 - alpha) * event.values[1];
                 gravity[2] = alpha * gravity[2] + (1 - alpha) * event.values[2];
 
-                String str_accelerometer = "加速度传感器\n" +
+                String str_accelerometer = "加速度传感器（消除重力影响）\n" +
                         "x:" + (event.values[0] - gravity[0]) + "\n" +
                         "y:" + (event.values[1] - gravity[1]) + "\n" +
                         "z:" + (event.values[2] - gravity[2]);
