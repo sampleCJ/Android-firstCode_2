@@ -3,11 +3,16 @@ package com.guzhuo.cameraalbumtest;
 import android.Manifest;
 import android.annotation.TargetApi;
 import android.content.ContentUris;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.media.Image;
 import android.net.Uri;
 import android.os.Build;
@@ -20,9 +25,11 @@ import android.support.v4.content.ContextCompat;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
@@ -31,14 +38,24 @@ import java.io.IOException;
 import java.lang.annotation.Documented;
 import java.lang.annotation.Target;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity
+        implements SensorEventListener {
 
     public static final int TAKE_PHOTO = 1;
     public static final int CHOOSE_PHOTO = 2;
 
     private ImageView picture;
-
     private Uri imageUri;
+
+    private SensorManager mSensorManager;
+    private TextView mTxtValue1;
+    private TextView mTxtValue2;
+
+    private float[] mSensorValues0;
+    private float[] mSensorValues1;
+    private float[] mSensorStatic0;
+    private float[] mSensorStatic1;
+    public static final  String TAG="GetSensorStaticValues";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,6 +65,11 @@ public class MainActivity extends AppCompatActivity {
         Button takePhoto = (Button)findViewById(R.id.take_photo);
         Button chooseFromAlbum = (Button)findViewById(R.id.choose_from_album);
         picture = (ImageView)findViewById(R.id.picture);
+        // ---
+        mTxtValue1 = (TextView)findViewById(R.id.txt_value1);
+        mTxtValue2 = (TextView)findViewById(R.id.txt_value2);
+        // 获取传感器管理器
+        mSensorManager = (SensorManager)getSystemService(Context.SENSOR_SERVICE);
 
         takePhoto.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -92,6 +114,65 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 为加速度传感器注册监听器
+        mSensorManager.registerListener(this,
+                mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION),
+                SensorManager.SENSOR_DELAY_GAME);
+        // 为方向传感器注册监听器
+        mSensorManager.registerListener(this,
+                mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),  // 不建议的注册方式
+                SensorManager.SENSOR_DELAY_GAME);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // 若退出页面则注销监听器
+        mSensorManager.unregisterListener(this);
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        StringBuilder stringBuilder = new StringBuilder();
+
+        switch (event.sensor.getType()) {
+            case Sensor.TYPE_LINEAR_ACCELERATION:
+                mSensorValues0 = event.values;
+
+                stringBuilder.append("线性加速度传感器返回数据：");
+                stringBuilder.append("\nX轴加速度：");
+                stringBuilder.append(mSensorValues0[0]);
+                stringBuilder.append("\nY轴加速度：");
+                stringBuilder.append(mSensorValues0[1]);
+                stringBuilder.append("\nZ轴加速度：");
+                stringBuilder.append(mSensorValues0[2]);
+
+                mTxtValue1.setText(stringBuilder.toString());
+                break;
+            case Sensor.TYPE_ORIENTATION:
+                mSensorValues1 = event.values;
+
+                stringBuilder.append("方向传感器返回数据：");
+                stringBuilder.append("\n绕Z轴旋转的角度：");
+                stringBuilder.append(mSensorValues1[0]);
+                stringBuilder.append("\n绕X轴旋转的角度：");
+                stringBuilder.append(mSensorValues1[1]);
+                stringBuilder.append("\n绕Y轴旋转的角度：");
+                stringBuilder.append(mSensorValues1[2]);
+
+                mTxtValue2.setText(stringBuilder.toString());
+                break;
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+    }
+
     private void openAlbum() {
         Intent intent = new Intent("android.intent.action.GET_CONTENT");
         intent.setType("image/*");
@@ -115,6 +196,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+
         switch (requestCode) {
             case TAKE_PHOTO:
                 if (resultCode == RESULT_OK) {
@@ -127,6 +209,13 @@ public class MainActivity extends AppCompatActivity {
                         e.printStackTrace();
                     }
                 }
+
+                // 拍摄照片成功时，记录传感器数据
+                mSensorStatic0 = mSensorValues0;
+                mSensorStatic1 = mSensorValues1;
+                Log.w(TAG, "onActivityResult Accelerometer::mSensorStatic0: " + mSensorStatic0[0] + ", " + mSensorStatic0[1] + ", " + mSensorStatic0[2]);
+                Log.w(TAG, "onActivityResult OrientationSensor::mSensorStatic1: " + mSensorStatic1[0] + ", " + mSensorStatic1[1] + ", " + mSensorStatic1[2]);
+
                 break;
             case CHOOSE_PHOTO:
                 if (resultCode == RESULT_OK) {
@@ -200,4 +289,5 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "[MainActivity-displayImage()]failed to get image", Toast.LENGTH_SHORT).show();
         }
     }
+
 }
