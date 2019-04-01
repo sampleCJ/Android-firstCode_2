@@ -13,7 +13,6 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.media.Image;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.DocumentsContract;
@@ -35,8 +34,7 @@ import android.widget.Toast;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.lang.annotation.Documented;
-import java.lang.annotation.Target;
+
 
 public class MainActivity extends AppCompatActivity
         implements SensorEventListener {
@@ -53,9 +51,11 @@ public class MainActivity extends AppCompatActivity
 
     private float[] mSensorValues0;
     private float[] mSensorValues1;
-    private float[] mSensorStatic0;
-    private float[] mSensorStatic1;
-    public static final  String TAG="GetSensorStaticValues";
+    private float[] mChangedValues0;
+    private float[] mChangedValues1;
+    private int mTimeStatus = 1;
+    private long mChangedTime = 0;
+    public static final  String TAG="InterruptSensorsValues";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -210,11 +210,7 @@ public class MainActivity extends AppCompatActivity
                     }
                 }
 
-                // 拍摄照片成功时，记录传感器数据
-                mSensorStatic0 = mSensorValues0;
-                mSensorStatic1 = mSensorValues1;
-                Log.w(TAG, "onActivityResult Accelerometer::mSensorStatic0: " + mSensorStatic0[0] + ", " + mSensorStatic0[1] + ", " + mSensorStatic0[2]);
-                Log.w(TAG, "onActivityResult OrientationSensor::mSensorStatic1: " + mSensorStatic1[0] + ", " + mSensorStatic1[1] + ", " + mSensorStatic1[2]);
+                fetchValues();
 
                 break;
             case CHOOSE_PHOTO:
@@ -288,6 +284,37 @@ public class MainActivity extends AppCompatActivity
         } else {
             Toast.makeText(this, "[MainActivity-displayImage()]failed to get image", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    /**
+     * 截取加速度传感器，方向传感器，当前系统时间的值
+     */
+    private void fetchValues() {
+        // 拍摄照片成功时，记录传感器数据，时间
+        mChangedValues0 = mSensorValues0;
+        mChangedValues1 = mSensorValues1;
+
+        long curTime = System.currentTimeMillis();
+
+        preprocessValues(curTime);
+    }
+
+    private void preprocessValues(long currentTimeMillis) {
+
+       switch (mTimeStatus) {
+           case 1:
+               mTimeStatus = 0;
+               mChangedTime = currentTimeMillis;
+               break;
+           case 0:
+               mTimeStatus = 1;
+               mChangedTime = currentTimeMillis - mChangedTime;
+               break;
+           default:
+               break;
+       }
+
+
     }
 
 }
