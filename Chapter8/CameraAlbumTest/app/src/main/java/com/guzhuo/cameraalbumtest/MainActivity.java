@@ -55,7 +55,7 @@ public class MainActivity extends AppCompatActivity
     private float[] mChangedValues1;
     private int mTimeStatus = 1;
     private long mChangedTime = 0;
-    public static final  String TAG="InterruptSensorsValues";
+    public static final  String TAG="fetchSensorValues";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -290,25 +290,26 @@ public class MainActivity extends AppCompatActivity
      * 截取加速度传感器，方向传感器，当前系统时间的值
      */
     private void fetchValues() {
-        // 拍摄照片成功时，记录传感器数据，时间
-        mChangedValues0 = mSensorValues0;
-        mChangedValues1 = mSensorValues1;
-
-        long curTime = System.currentTimeMillis();
-
-        preprocessValues(curTime);
-    }
-
-    private void preprocessValues(long currentTimeMillis) {
+        long curTimeMillis = System.currentTimeMillis();
 
        switch (mTimeStatus) {
            case 1:
                mTimeStatus = 0;
-               mChangedTime = currentTimeMillis;
+               mChangedTime = curTimeMillis;
+               mChangedValues0 = mSensorValues0;
+               mChangedValues1 = mSensorValues1;
                break;
            case 0:
                mTimeStatus = 1;
-               mChangedTime = currentTimeMillis - mChangedTime;
+               mChangedTime = curTimeMillis - mChangedTime;
+               for (int i = 0; i < mSensorValues0.length; i++) {
+                   mChangedValues0[i] = mSensorValues0[i] - mChangedValues0[i];
+                   mChangedValues1[i] = mSensorValues1[i] - mChangedValues1[i];
+               }
+
+               Log.w(TAG, "fetchValues::ChangedTime: " + mChangedTime );
+               Log.w(TAG, "fetchValues::mChangedValues0: " + mChangedValues0.toString());
+               Log.w(TAG, "fetchValues::mChangedValues1: " + mChangedValues1.toString());
                break;
            default:
                break;
