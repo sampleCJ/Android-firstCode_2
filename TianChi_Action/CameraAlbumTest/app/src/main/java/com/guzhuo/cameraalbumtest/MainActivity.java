@@ -34,6 +34,7 @@ import android.widget.Toast;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
 
 
 public class MainActivity extends AppCompatActivity
@@ -50,31 +51,33 @@ public class MainActivity extends AppCompatActivity
     private TextView mTxtValue2;
     private TextView mTxtValue3;
 
-    private float[] mSensorValues0;
+    private float[] mSensorValues0 = null;
     private float[] mSensorValues1;
     private float[] mChangedValues0;
     private float[] mChangedValues1;
     private int mTimeStatus = 1;
     private long mChangedTime = 0;
-    public static final  String TAG="fetchSensorValues";
+    public static final String TAG = "fetchSensorValues";
 
-    private double formula_a0 = 0;
-    private double formula_dist = 0;
+    private double[] mAccVel = new double[3];  // 待累加速度
+    private double[] mAccDisp = new double[3];  // 待累加位移
+    private ArrayList<Double> pointsDisp = null;  // 不同拍照地点之间的距离
+    private double mPrevTime;  // 前一刻的时间
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Button takePhoto = (Button)findViewById(R.id.take_photo);
-        Button chooseFromAlbum = (Button)findViewById(R.id.choose_from_album);
-        picture = (ImageView)findViewById(R.id.picture);
+        Button takePhoto = (Button) findViewById(R.id.take_photo);
+        Button chooseFromAlbum = (Button) findViewById(R.id.choose_from_album);
+        picture = (ImageView) findViewById(R.id.picture);
         // ---
-        mTxtValue1 = (TextView)findViewById(R.id.txt_value1);
-        mTxtValue2 = (TextView)findViewById(R.id.txt_value2);
-        mTxtValue3 = (TextView)findViewById(R.id.txt_value3);
+        mTxtValue1 = (TextView) findViewById(R.id.txt_value1);
+        mTxtValue2 = (TextView) findViewById(R.id.txt_value2);
+        mTxtValue3 = (TextView) findViewById(R.id.txt_value3);
         // 获取传感器管理器
-        mSensorManager = (SensorManager)getSystemService(Context.SENSOR_SERVICE);
+        mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
 
         takePhoto.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -112,7 +115,7 @@ public class MainActivity extends AppCompatActivity
                 // 授予程序对 SD 卡读写的能力。
                 if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
                         != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{ Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
+                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
                 } else {
                     openAlbum();
                 }
@@ -143,19 +146,34 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onSensorChanged(SensorEvent event) {
 
+        // 如是，则表示现未进入计算状态
+        if (pointsDisp == null) return;
+
         StringBuilder stringBuilder = new StringBuilder();
 
         switch (event.sensor.getType()) {
             case Sensor.TYPE_LINEAR_ACCELERATION:
                 mSensorValues0 = event.values;
+                long curTime = System.currentTimeMillis();
+                double changedTime = curTime - mPrevTime;
+
+                double changedTime_Pow2 = changedTime * changedTime;
+                double disp_x = 0.5 * event.values[0] * changedTime_Pow2;
+                double disp_y = 0.5 * event.values[1] * changedTime_Pow2;
+                double disp_z = 0.5 * event.values[2] * changedTime_Pow2;
+
+                // 在单位时间切片中，可视作进行匀加速运动
+                disp_x += mAccVel[0] * changedTime;
+                disp_y += mAccVel[1] * changedTime;
+                disp_z += mAccVel[2] * changedTime;
 
                 stringBuilder.append("线性加速度传感器返回数据：");
                 stringBuilder.append("\nX轴加速度：");
-                stringBuilder.append(mSensorValues0[0]);
+                stringBuilder.append(event.values[0]);
                 stringBuilder.append("\nY轴加速度：");
-                stringBuilder.append(mSensorValues0[1]);
+                stringBuilder.append(event.values[1]);
                 stringBuilder.append("\nZ轴加速度：");
-                stringBuilder.append(mSensorValues0[2]);
+                stringBuilder.append(event.values[2]);
 
                 mTxtValue1.setText(stringBuilder.toString());
                 break;
@@ -173,6 +191,9 @@ public class MainActivity extends AppCompatActivity
                 mTxtValue2.setText(stringBuilder.toString());
                 break;
         }
+
+
+
     }
 
     @Override
@@ -193,7 +214,7 @@ public class MainActivity extends AppCompatActivity
                     try {
                         // 将拍摄的照片显示出来
                         Bitmap bitmap = BitmapFactory.decodeStream(getContentResolver()
-                                                                   .openInputStream(imageUri));
+                                .openInputStream(imageUri));
                         picture.setImageBitmap(bitmap);
                     } catch (FileNotFoundException e) {
                         e.printStackTrace();
@@ -217,7 +238,6 @@ public class MainActivity extends AppCompatActivity
                 break;
         }
     }
-
 
 
     private void openAlbum() {
@@ -303,38 +323,37 @@ public class MainActivity extends AppCompatActivity
     private void fetchValues() {
         long curTimeMillis = System.currentTimeMillis();
 
-       switch (mTimeStatus) {
-           case 1:
-               mTimeStatus = 0;
-               mChangedTime = curTimeMillis;
-               mChangedValues0 = mSensorValues0;
-               mChangedValues1 = mSensorValues1;
+        switch (mTimeStatus) {
+            case 1:
+                mTimeStatus = 0;
+                mChangedTime = curTimeMillis;
+                mChangedValues0 = mSensorValues0;
+                mChangedValues1 = mSensorValues1;
 
-               formula_a0 = Math.sqrt(Math.pow(mSensorValues0[0], 2) + Math.pow(mSensorValues0[1], 2));
+                formula_a0 = Math.sqrt(Math.pow(mSensorValues0[0], 2) + Math.pow(mSensorValues0[1], 2));
 
-               break;
-           case 0:
-               mTimeStatus = 1;
-               mChangedTime = curTimeMillis - mChangedTime;
-               for (int i = 0; i < mSensorValues0.length; i++) {
-                   mChangedValues0[i] = mSensorValues0[i] - mChangedValues0[i];
-                   mChangedValues1[i] = mSensorValues1[i] - mChangedValues1[i];
-               }
+                break;
+            case 0:
+                mTimeStatus = 1;
+                mChangedTime = curTimeMillis - mChangedTime;
+                for (int i = 0; i < mSensorValues0.length; i++) {
+                    mChangedValues0[i] = mSensorValues0[i] - mChangedValues0[i];
+                }
 
-               Log.w(TAG, "fetchValues: this mChanged/1000:" + mChangedTime/1000);
+                Log.w(TAG, "fetchValues: this mChanged/1000:" + mChangedTime / 1000);
 
-               formula_dist = formula_a0 * Math.pow(mChangedTime/1000, 2) / 2;
+                formula_dist = formula_a0 * Math.pow(mChangedTime / 1000, 2) / 2;
 
-               Log.w(TAG, "fetchValues::ChangedTime: " + mChangedTime/1000 );
-               Log.w(TAG, "fetchValues::mChangedValues0: " + String.valueOf(mChangedValues0));
-               Log.w(TAG, "fetchValues::mChangedValues1: " + String.valueOf(mChangedValues1));
-               Log.w(TAG, "fetchValues::formular_dist: " + formula_dist );
-               mTxtValue3.setText("Move Distance: " + String.valueOf(formula_dist));
+                Log.w(TAG, "fetchValues::ChangedTime: " + mChangedTime / 1000);
+                Log.w(TAG, "fetchValues::mChangedValues0: " + String.valueOf(mChangedValues0));
+                Log.w(TAG, "fetchValues::mChangedValues1: " + String.valueOf(mChangedValues1));
+                Log.w(TAG, "fetchValues::formular_dist: " + formula_dist);
+                mTxtValue3.setText("Move Distance: " + String.valueOf(formula_dist));
 
-               break;
-           default:
-               break;
-       }
+                break;
+            default:
+                break;
+        }
     }
 
 
