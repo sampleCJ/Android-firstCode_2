@@ -19,12 +19,6 @@
         android:layout_height="wrap_content"
         android:text="[res]Choose From Album" />
 
-    <ImageView
-        android:id="@+id/picture"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal" />
-
     <TextView
         android:id="@+id/txt_value1"
         android:layout_width="match_parent"
@@ -35,5 +29,16 @@
         android:id="@+id/txt_value2"
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
+
+    <TextView
+        android:id="@+id/txt_value3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <ImageView
+        android:id="@+id/picture"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal" />
 
 </LinearLayout>

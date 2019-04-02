@@ -48,6 +48,7 @@ public class MainActivity extends AppCompatActivity
     private SensorManager mSensorManager;
     private TextView mTxtValue1;
     private TextView mTxtValue2;
+    private TextView mTxtValue3;
 
     private float[] mSensorValues0;
     private float[] mSensorValues1;
@@ -56,6 +57,9 @@ public class MainActivity extends AppCompatActivity
     private int mTimeStatus = 1;
     private long mChangedTime = 0;
     public static final  String TAG="fetchSensorValues";
+
+    private double formula_a0 = 0;
+    private double formula_dist = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,6 +72,7 @@ public class MainActivity extends AppCompatActivity
         // ---
         mTxtValue1 = (TextView)findViewById(R.id.txt_value1);
         mTxtValue2 = (TextView)findViewById(R.id.txt_value2);
+        mTxtValue3 = (TextView)findViewById(R.id.txt_value3);
         // 获取传感器管理器
         mSensorManager = (SensorManager)getSystemService(Context.SENSOR_SERVICE);
 
@@ -88,7 +93,8 @@ public class MainActivity extends AppCompatActivity
 
                 if (Build.VERSION.SDK_INT >= 24) {
                     imageUri = FileProvider.getUriForFile(MainActivity.this,
-                            "com.guzhuo.cameraalbumtest.fileprovider", outputImage);
+                            "com.guzhuo.cameraalbumtest.fileprovider",
+                            outputImage);
                 } else {
                     imageUri = Uri.fromFile(outputImage);
                 }
@@ -173,26 +179,6 @@ public class MainActivity extends AppCompatActivity
 
     }
 
-    private void openAlbum() {
-        Intent intent = new Intent("android.intent.action.GET_CONTENT");
-        intent.setType("image/*");
-        // 传回图片时，保证 onActivityResult() 进入 CHOOSE_PHOTO 的 case，以处理图片。
-        startActivityForResult(intent, CHOOSE_PHOTO);  // 打开相册
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        switch (requestCode) {
-            case 1:
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    openAlbum();
-                } else {
-                    Toast.makeText(this, "You denied the permission", Toast.LENGTH_SHORT).show();
-                }
-                break;
-            default:
-        }
-    }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
@@ -227,6 +213,29 @@ public class MainActivity extends AppCompatActivity
                 break;
             default:
                 break;
+        }
+    }
+
+
+
+    private void openAlbum() {
+        Intent intent = new Intent("android.intent.action.GET_CONTENT");
+        intent.setType("image/*");
+        // 传回图片时，保证 onActivityResult() 进入 CHOOSE_PHOTO 的 case，以处理图片。
+        startActivityForResult(intent, CHOOSE_PHOTO);  // 打开相册
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case 1:
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    openAlbum();
+                } else {
+                    Toast.makeText(this, "You denied the permission", Toast.LENGTH_SHORT).show();
+                }
+                break;
+            default:
         }
     }
 
@@ -298,6 +307,9 @@ public class MainActivity extends AppCompatActivity
                mChangedTime = curTimeMillis;
                mChangedValues0 = mSensorValues0;
                mChangedValues1 = mSensorValues1;
+
+               formula_a0 = Math.sqrt(Math.pow(mSensorValues0[0], 2) + Math.pow(mSensorValues0[1], 2));
+
                break;
            case 0:
                mTimeStatus = 1;
@@ -307,15 +319,21 @@ public class MainActivity extends AppCompatActivity
                    mChangedValues1[i] = mSensorValues1[i] - mChangedValues1[i];
                }
 
-               Log.w(TAG, "fetchValues::ChangedTime: " + mChangedTime );
-               Log.w(TAG, "fetchValues::mChangedValues0: " + mChangedValues0.toString());
-               Log.w(TAG, "fetchValues::mChangedValues1: " + mChangedValues1.toString());
+               Log.w(TAG, "fetchValues: this mChanged/1000:" + mChangedTime/1000);
+
+               formula_dist = formula_a0 * Math.pow(mChangedTime/1000, 2) / 2;
+
+               Log.w(TAG, "fetchValues::ChangedTime: " + mChangedTime/1000 );
+               Log.w(TAG, "fetchValues::mChangedValues0: " + String.valueOf(mChangedValues0));
+               Log.w(TAG, "fetchValues::mChangedValues1: " + String.valueOf(mChangedValues1));
+               Log.w(TAG, "fetchValues::formular_dist: " + formula_dist );
+               mTxtValue3.setText("Move Distance: " + String.valueOf(formula_dist));
+
                break;
            default:
                break;
        }
-
-
     }
+
 
 }
