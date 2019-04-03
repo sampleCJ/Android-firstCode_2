@@ -50,12 +50,13 @@ public class MainActivity extends AppCompatActivity
     private TextView mTxtValue1;
 
 
-    public static final String TAG = "fetchSensorValues";
+    public static final String TAG = "fetchValues";
 
     private double[] mAccVel = new double[3];  // 待累加速度
     private double[] mAccDisp = new double[3];  // 待累加位移
     private ArrayList<Double> mPointsDisp;  // 不同拍照地点之间的距离
     private double mPrevTime;  // 前一刻的时间
+    private double mChangedTime;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -143,17 +144,18 @@ public class MainActivity extends AppCompatActivity
         switch (event.sensor.getType()) {
             case Sensor.TYPE_LINEAR_ACCELERATION:
                 long curTime = System.currentTimeMillis();
-                double changedTime = curTime - mPrevTime;
+                mChangedTime = (curTime - mPrevTime)/ 1000;
 
-                double changedTime_Pow2 = changedTime * changedTime;
+                double changedTime_Pow2 = mChangedTime * mChangedTime;
                 double disp_x = 0.5 * event.values[0] * changedTime_Pow2;
                 double disp_y = 0.5 * event.values[1] * changedTime_Pow2;
                 double disp_z = 0.5 * event.values[2] * changedTime_Pow2;
 
+
                 // 在单位时间切片中，可视作进行匀速运动/ 匀加速运动
-                disp_x += mAccVel[0] * changedTime;
-                disp_y += mAccVel[1] * changedTime;
-                disp_z += mAccVel[2] * changedTime;
+                disp_x += mAccVel[0] * mChangedTime;
+                disp_y += mAccVel[1] * mChangedTime;
+                disp_z += mAccVel[2] * mChangedTime;
 
                 // 更新位移量
                 mAccDisp[0] += disp_x;
@@ -315,6 +317,8 @@ public class MainActivity extends AppCompatActivity
                 .get(mPointsDisp.size()-1)
                 .toString());
 
+        Log.w(TAG, "fetchValues: mPointsDisp.size(" + mPointsDisp.size() + "), " + "mPointsDisp: " + mPointsDisp);
+        Log.w(TAG, "onSensorChanged: changedTime: " + mChangedTime);
     }
 
 
