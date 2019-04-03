@@ -48,20 +48,13 @@ public class MainActivity extends AppCompatActivity
 
     private SensorManager mSensorManager;
     private TextView mTxtValue1;
-    private TextView mTxtValue2;
-    private TextView mTxtValue3;
 
-    private float[] mSensorValues0 = null;
-    private float[] mSensorValues1;
-    private float[] mChangedValues0;
-    private float[] mChangedValues1;
-    private int mTimeStatus = 1;
-    private long mChangedTime = 0;
+
     public static final String TAG = "fetchSensorValues";
 
     private double[] mAccVel = new double[3];  // 待累加速度
     private double[] mAccDisp = new double[3];  // 待累加位移
-    private ArrayList<Double> pointsDisp = null;  // 不同拍照地点之间的距离
+    private ArrayList<Double> mPointsDisp;  // 不同拍照地点之间的距离
     private double mPrevTime;  // 前一刻的时间
 
     @Override
@@ -74,8 +67,6 @@ public class MainActivity extends AppCompatActivity
         picture = (ImageView) findViewById(R.id.picture);
         // ---
         mTxtValue1 = (TextView) findViewById(R.id.txt_value1);
-        mTxtValue2 = (TextView) findViewById(R.id.txt_value2);
-        mTxtValue3 = (TextView) findViewById(R.id.txt_value3);
         // 获取传感器管理器
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
 
@@ -147,13 +138,10 @@ public class MainActivity extends AppCompatActivity
     public void onSensorChanged(SensorEvent event) {
 
         // 如是，则表示现未进入计算状态
-        if (pointsDisp == null) return;
-
-        StringBuilder stringBuilder = new StringBuilder();
+        if (mPointsDisp == null) return;
 
         switch (event.sensor.getType()) {
             case Sensor.TYPE_LINEAR_ACCELERATION:
-                mSensorValues0 = event.values;
                 long curTime = System.currentTimeMillis();
                 double changedTime = curTime - mPrevTime;
 
@@ -162,33 +150,21 @@ public class MainActivity extends AppCompatActivity
                 double disp_y = 0.5 * event.values[1] * changedTime_Pow2;
                 double disp_z = 0.5 * event.values[2] * changedTime_Pow2;
 
-                // 在单位时间切片中，可视作进行匀加速运动
+                // 在单位时间切片中，可视作进行匀速运动/ 匀加速运动
                 disp_x += mAccVel[0] * changedTime;
                 disp_y += mAccVel[1] * changedTime;
                 disp_z += mAccVel[2] * changedTime;
 
-                stringBuilder.append("线性加速度传感器返回数据：");
-                stringBuilder.append("\nX轴加速度：");
-                stringBuilder.append(event.values[0]);
-                stringBuilder.append("\nY轴加速度：");
-                stringBuilder.append(event.values[1]);
-                stringBuilder.append("\nZ轴加速度：");
-                stringBuilder.append(event.values[2]);
+                // 更新位移量
+                mAccDisp[0] += disp_x;
+                mAccDisp[1] += disp_y;
+                mAccDisp[2] += disp_z;
 
-                mTxtValue1.setText(stringBuilder.toString());
+                // 更新时间
+                mPrevTime = curTime;
+
                 break;
             case Sensor.TYPE_ORIENTATION:
-                mSensorValues1 = event.values;
-
-                stringBuilder.append("方向传感器返回数据：");
-                stringBuilder.append("\n绕Z轴旋转的角度：");
-                stringBuilder.append(mSensorValues1[0]);
-                stringBuilder.append("\n绕X轴旋转的角度：");
-                stringBuilder.append(mSensorValues1[1]);
-                stringBuilder.append("\n绕Y轴旋转的角度：");
-                stringBuilder.append(mSensorValues1[2]);
-
-                mTxtValue2.setText(stringBuilder.toString());
                 break;
         }
 
@@ -208,8 +184,21 @@ public class MainActivity extends AppCompatActivity
         switch (requestCode) {
             case TAKE_PHOTO:
                 if (resultCode == RESULT_OK) {
+                    /**
+                     * 在回调函数中，判断若为首次拍照，则初始化相关变量/ 代数因子
+                     * GO!
+                     */
+                    if (mPointsDisp == null) {
+                        // 首次拍照，初始化代数因子
+                        mAccVel = new double[3];
+                        mAccDisp = new double[3];
+                        mPointsDisp = new ArrayList<Double>();
+                    }else {
+                        fetchValues();
+                        // 将位移量置0
+                        mAccDisp = new double[3];
+                }
 
-                    fetchValues();
 
                     try {
                         // 将拍摄的照片显示出来
@@ -318,42 +307,14 @@ public class MainActivity extends AppCompatActivity
     }
 
     /**
-     * 截取加速度传感器，方向传感器，当前系统时间的值
+     * 将本次测距结果加入 mPointsDisp
      */
     private void fetchValues() {
-        long curTimeMillis = System.currentTimeMillis();
+        mPointsDisp.add(Math.sqrt(mAccDisp[0] * mAccDisp[0] + mAccDisp[1] * mAccDisp[1] + mAccDisp[2] * mAccDisp[2]));
+        mTxtValue1.setText(mPointsDisp
+                .get(mPointsDisp.size()-1)
+                .toString());
 
-        switch (mTimeStatus) {
-            case 1:
-                mTimeStatus = 0;
-                mChangedTime = curTimeMillis;
-                mChangedValues0 = mSensorValues0;
-                mChangedValues1 = mSensorValues1;
-
-                formula_a0 = Math.sqrt(Math.pow(mSensorValues0[0], 2) + Math.pow(mSensorValues0[1], 2));
-
-                break;
-            case 0:
-                mTimeStatus = 1;
-                mChangedTime = curTimeMillis - mChangedTime;
-                for (int i = 0; i < mSensorValues0.length; i++) {
-                    mChangedValues0[i] = mSensorValues0[i] - mChangedValues0[i];
-                }
-
-                Log.w(TAG, "fetchValues: this mChanged/1000:" + mChangedTime / 1000);
-
-                formula_dist = formula_a0 * Math.pow(mChangedTime / 1000, 2) / 2;
-
-                Log.w(TAG, "fetchValues::ChangedTime: " + mChangedTime / 1000);
-                Log.w(TAG, "fetchValues::mChangedValues0: " + String.valueOf(mChangedValues0));
-                Log.w(TAG, "fetchValues::mChangedValues1: " + String.valueOf(mChangedValues1));
-                Log.w(TAG, "fetchValues::formular_dist: " + formula_dist);
-                mTxtValue3.setText("Move Distance: " + String.valueOf(formula_dist));
-
-                break;
-            default:
-                break;
-        }
     }
 
 
