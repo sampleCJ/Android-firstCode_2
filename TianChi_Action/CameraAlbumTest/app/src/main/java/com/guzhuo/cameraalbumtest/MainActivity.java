@@ -52,11 +52,13 @@ public class MainActivity extends AppCompatActivity
 
     public static final String TAG = "fetchValues";
 
-    private double[] mAccVel = new double[3];  // 待累加速度
-    private double[] mAccDisp = new double[3];  // 待累加位移
+    private double[] mAccAcc = new double[3];  // 加速度值带累加
+    private double[] mAccVel = new double[3];  // 速度值待累加
+    private double[] mAccDisp = new double[3];  // 位移量待累加
     private ArrayList<Double> mPointsDisp;  // 不同拍照地点之间的距离
+    private float[] mPrevAcc = new float[3];  // 前一刻的加速度值
     private double mPrevTime;  // 前一刻的时间
-    private double mChangedTime;
+    private double mChangedTime;  //前后刻的变化时间，一般作切片时间的区长
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -146,24 +148,41 @@ public class MainActivity extends AppCompatActivity
                 long curTime = System.currentTimeMillis();
                 mChangedTime = (curTime - mPrevTime)/ 1000;
 
-                double changedTime_Pow2 = mChangedTime * mChangedTime;
-                double disp_x = 0.5 * event.values[0] * changedTime_Pow2;
-                double disp_y = 0.5 * event.values[1] * changedTime_Pow2;
-                double disp_z = 0.5 * event.values[2] * changedTime_Pow2;
+                // 切片时间内的平均加速度
+                for (int i = 0; i < event.values.length; i++) {
+                    mAccAcc[i] = event.values[i] - mPrevAcc[i];
+                }
+
+                // 切片时间内的位移量，视作匀加速运动
+                double disp_x = mAccVel[0] * mChangedTime + 0.5 * mAccAcc[0] * mChangedTime * mChangedTime;
+                double disp_y = mAccVel[1] * mChangedTime + 0.5 * mAccAcc[1] * mChangedTime * mChangedTime;
+                double disp_z = mAccVel[2] * mChangedTime + 0.5 * mAccAcc[2] * mChangedTime * mChangedTime;
 
 
-                // 在单位时间切片中，可视作进行匀速运动/ 匀加速运动
-                disp_x += mAccVel[0] * mChangedTime;
-                disp_y += mAccVel[1] * mChangedTime;
-                disp_z += mAccVel[2] * mChangedTime;
+//                double changedTime_Pow2 = mChangedTime * mChangedTime;
+//                double disp_x = 0.5 * event.values[0] * changedTime_Pow2;
+//                double disp_y = 0.5 * event.values[1] * changedTime_Pow2;
+//                double disp_z = 0.5 * event.values[2] * changedTime_Pow2;
+//
+//
+//                // 在单位时间切片中，可视作进行匀加速运动
+//                disp_x += mAccVel[0] * mChangedTime;
+//                disp_y += mAccVel[1] * mChangedTime;
+//                disp_z += mAccVel[2] * mChangedTime;
+
 
                 // 更新位移量
                 mAccDisp[0] += disp_x;
                 mAccDisp[1] += disp_y;
                 mAccDisp[2] += disp_z;
-
+                // 更新加速度
+                mPrevAcc = event.values;
                 // 更新时间
                 mPrevTime = curTime;
+                // 更新速度
+                for (int i = 0; i < event.values.length; i++) {
+                    mAccVel[i] = mAccAcc[i] * mChangedTime;
+                }
 
                 break;
             case Sensor.TYPE_ORIENTATION:
@@ -318,7 +337,6 @@ public class MainActivity extends AppCompatActivity
                 .toString());
 
         Log.w(TAG, "fetchValues: mPointsDisp.size(" + mPointsDisp.size() + "), " + "mPointsDisp: " + mPointsDisp);
-        Log.w(TAG, "onSensorChanged: changedTime: " + mChangedTime);
     }
 
 
