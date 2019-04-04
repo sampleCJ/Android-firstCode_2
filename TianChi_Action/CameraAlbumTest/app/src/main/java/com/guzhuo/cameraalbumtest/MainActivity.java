@@ -155,21 +155,10 @@ public class MainActivity extends AppCompatActivity
                 }
 
                 // 切片时间内的位移量，视作匀加速运动
+                double mChangedTime_Pow2 = mChangedTime * mChangedTime;
                 double disp_x = mAccVel[0] * mChangedTime + 0.5 * mAccAcc[0] * mChangedTime * mChangedTime;
                 double disp_y = mAccVel[1] * mChangedTime + 0.5 * mAccAcc[1] * mChangedTime * mChangedTime;
                 double disp_z = mAccVel[2] * mChangedTime + 0.5 * mAccAcc[2] * mChangedTime * mChangedTime;
-
-
-//                double changedTime_Pow2 = mChangedTime * mChangedTime;
-//                double disp_x = 0.5 * event.values[0] * changedTime_Pow2;
-//                double disp_y = 0.5 * event.values[1] * changedTime_Pow2;
-//                double disp_z = 0.5 * event.values[2] * changedTime_Pow2;
-//
-//
-//                // 在单位时间切片中，可视作进行匀加速运动
-//                disp_x += mAccVel[0] * mChangedTime;
-//                disp_y += mAccVel[1] * mChangedTime;
-//                disp_z += mAccVel[2] * mChangedTime;
 
 
                 // 更新位移量
@@ -213,11 +202,9 @@ public class MainActivity extends AppCompatActivity
                         // 首次拍照，初始化代数因子
                         mAccVel = new double[3];
                         mAccDisp = new double[3];
-                        mPointsDisp = new ArrayList<Double>();
+                        mPointsDisp = new ArrayList<>();
 
                         Log.w(TAG, "onActivityResult: Now this mAccVel[0]: " + mAccVel[0]);
-                        Log.w(TAG, "onActivityResult: Now this mPointsDisp[0]:" + mPointsDisp.get(0));
-
                     }else {
                         fetchValues();
                         // 将位移量置0
