@@ -35,6 +35,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 
 public class MainActivity extends AppCompatActivity
@@ -55,7 +56,7 @@ public class MainActivity extends AppCompatActivity
     private double[] mAccAcc = new double[3];  // 加速度值带累加
     private double[] mAccVel = new double[3];  // 速度值待累加
     private double[] mAccDisp = new double[3];  // 位移量待累加
-    private ArrayList<Double> mPointsDisp;  // 不同拍照地点之间的距离
+    private List<Double> mPointsDisp;  // 不同拍照地点之间的距离
     private float[] mPrevAcc = new float[3];  // 前一刻的加速度值
     private double mPrevTime;  // 前一刻的时间
     private double mChangedTime;  //前后刻的变化时间，一般作切片时间的区长
@@ -175,13 +176,12 @@ public class MainActivity extends AppCompatActivity
                 mAccDisp[0] += disp_x;
                 mAccDisp[1] += disp_y;
                 mAccDisp[2] += disp_z;
-                // 更新加速度
-                mPrevAcc = event.values;
                 // 更新时间
                 mPrevTime = curTime;
-                // 更新速度
+                // 更新速度，上一刻加速度
                 for (int i = 0; i < event.values.length; i++) {
-                    mAccVel[i] = mAccAcc[i] * mChangedTime;
+                    mAccVel[i] += mAccAcc[i] * mChangedTime;
+                    mPrevAcc[i] = event.values[i];
                 }
 
                 break;
@@ -214,6 +214,10 @@ public class MainActivity extends AppCompatActivity
                         mAccVel = new double[3];
                         mAccDisp = new double[3];
                         mPointsDisp = new ArrayList<Double>();
+
+                        Log.w(TAG, "onActivityResult: Now this mAccVel[0]: " + mAccVel[0]);
+                        Log.w(TAG, "onActivityResult: Now this mPointsDisp[0]:" + mPointsDisp.get(0));
+
                     }else {
                         fetchValues();
                         // 将位移量置0
