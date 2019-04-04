@@ -156,9 +156,9 @@ public class MainActivity extends AppCompatActivity
 
                 // 切片时间内的位移量，视作匀加速运动
                 double mChangedTime_Pow2 = mChangedTime * mChangedTime;
-                double disp_x = mAccVel[0] * mChangedTime + 0.5 * mAccAcc[0] * mChangedTime * mChangedTime;
-                double disp_y = mAccVel[1] * mChangedTime + 0.5 * mAccAcc[1] * mChangedTime * mChangedTime;
-                double disp_z = mAccVel[2] * mChangedTime + 0.5 * mAccAcc[2] * mChangedTime * mChangedTime;
+                double disp_x = mAccVel[0] * mChangedTime + 0.5 * mAccAcc[0] * mChangedTime_Pow2;
+                double disp_y = mAccVel[1] * mChangedTime + 0.5 * mAccAcc[1] * mChangedTime_Pow2;
+                double disp_z = mAccVel[2] * mChangedTime + 0.5 * mAccAcc[2] * mChangedTime_Pow2;
 
 
                 // 更新位移量
@@ -200,6 +200,7 @@ public class MainActivity extends AppCompatActivity
                      */
                     if (mPointsDisp == null) {
                         // 首次拍照，初始化代数因子
+                        mPrevTime = System.currentTimeMillis();
                         mAccVel = new double[3];
                         mAccDisp = new double[3];
                         mPointsDisp = new ArrayList<>();
@@ -327,6 +328,7 @@ public class MainActivity extends AppCompatActivity
                 .get(mPointsDisp.size()-1)
                 .toString());
 
+        Log.w(TAG, "fetchValues: mAccVel: " + (mAccVel[0] * mAccVel[0] + mAccVel[1] * mAccVel[1] + mAccVel[2] * mAccVel[2]));
         Log.w(TAG, "fetchValues: mPointsDisp.size(" + mPointsDisp.size() + "), " + "mPointsDisp: " + mPointsDisp);
     }
 
