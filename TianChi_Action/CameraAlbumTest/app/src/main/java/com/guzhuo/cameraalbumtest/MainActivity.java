@@ -146,12 +146,13 @@ public class MainActivity extends AppCompatActivity
 
         switch (event.sensor.getType()) {
             case Sensor.TYPE_LINEAR_ACCELERATION:
-                long curTime = System.currentTimeMillis();
+                double curTime = System.currentTimeMillis();
                 mChangedTime = (curTime - mPrevTime)/ 1000;
+
 
                 // 切片时间内的平均加速度
                 for (int i = 0; i < event.values.length; i++) {
-                    mAccAcc[i] = event.values[i] - mPrevAcc[i];
+                    mAccAcc[i] += event.values[i] - mPrevAcc[i];
                 }
 
                 // 切片时间内的位移量，视作匀加速运动
@@ -159,7 +160,6 @@ public class MainActivity extends AppCompatActivity
                 double disp_x = mAccVel[0] * mChangedTime + 0.5 * mAccAcc[0] * mChangedTime_Pow2;
                 double disp_y = mAccVel[1] * mChangedTime + 0.5 * mAccAcc[1] * mChangedTime_Pow2;
                 double disp_z = mAccVel[2] * mChangedTime + 0.5 * mAccAcc[2] * mChangedTime_Pow2;
-
 
                 // 更新位移量
                 mAccDisp[0] += disp_x;
@@ -204,8 +204,6 @@ public class MainActivity extends AppCompatActivity
                         mAccVel = new double[3];
                         mAccDisp = new double[3];
                         mPointsDisp = new ArrayList<>();
-
-                        Log.w(TAG, "onActivityResult: Now this mAccVel[0]: " + mAccVel[0]);
                     }else {
                         fetchValues();
                         // 将位移量置0
