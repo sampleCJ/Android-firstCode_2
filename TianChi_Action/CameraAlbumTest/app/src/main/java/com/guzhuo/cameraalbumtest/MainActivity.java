@@ -53,7 +53,7 @@ public class MainActivity extends AppCompatActivity
 
     public static final String TAG = "fetchValues";
 
-    private double[] mAccAcc = new double[3];  // 加速度值带累加
+    private double[] mChangedAcc = new double[3];  // 加速度值带累加
     private double[] mAccVel = new double[3];  // 速度值待累加
     private double[] mAccDisp = new double[3];  // 位移量待累加
     private List<Double> mPointsDisp;  // 不同拍照地点之间的距离
@@ -152,14 +152,20 @@ public class MainActivity extends AppCompatActivity
 
                 // 切片时间内的平均加速度
                 for (int i = 0; i < event.values.length; i++) {
-                    mAccAcc[i] += event.values[i] - mPrevAcc[i];
+                    mChangedAcc[i] = (event.values[i] + mPrevAcc[i]) * 0.5;
                 }
 
                 // 切片时间内的位移量，视作匀加速运动
                 double mChangedTime_Pow2 = mChangedTime * mChangedTime;
-                double disp_x = mAccVel[0] * mChangedTime + 0.5 * mAccAcc[0] * mChangedTime_Pow2;
-                double disp_y = mAccVel[1] * mChangedTime + 0.5 * mAccAcc[1] * mChangedTime_Pow2;
-                double disp_z = mAccVel[2] * mChangedTime + 0.5 * mAccAcc[2] * mChangedTime_Pow2;
+                double disp_x = mAccVel[0] * mChangedTime + 0.5 * mChangedAcc[0] * mChangedTime_Pow2;
+                double disp_y = mAccVel[1] * mChangedTime + 0.5 * mChangedAcc[1] * mChangedTime_Pow2;
+                double disp_z = mAccVel[2] * mChangedTime + 0.5 * mChangedAcc[2] * mChangedTime_Pow2;
+
+                Log.w(TAG, "onSensorChanged: mChangedTime: " + mChangedTime);
+                for (int i = 0; i < 3; i++) {
+                    Log.w(TAG, "onSensorChanged: mChangedAcc[" + i + "]: " + mChangedAcc[i]);
+                }
+
 
                 // 更新位移量
                 mAccDisp[0] += disp_x;
@@ -169,7 +175,8 @@ public class MainActivity extends AppCompatActivity
                 mPrevTime = curTime;
                 // 更新速度，上一刻加速度
                 for (int i = 0; i < event.values.length; i++) {
-                    mAccVel[i] += mAccAcc[i] * mChangedTime;
+                    mAccVel[i] += mChangedAcc[i] * mChangedTime;
+                    Log.w(TAG, "onSensorChanged: mAccVel[" + i + "]: " + mAccVel[i]);
                     mPrevAcc[i] = event.values[i];
                 }
 
