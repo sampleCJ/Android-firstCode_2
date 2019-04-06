@@ -15,6 +15,7 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Environment;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
@@ -34,32 +35,41 @@ import android.widget.Toast;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 
 public class MainActivity extends AppCompatActivity
         implements SensorEventListener {
 
+    // 系统相册的路径
+    String sysAlbumPath = Environment.getExternalStorageDirectory() +
+            File.separator + Environment.DIRECTORY_DCIM +
+            File.separator + "Camera" +
+            File.separator;
+
     public static final int TAKE_PHOTO = 1;
     public static final int CHOOSE_PHOTO = 2;
 
     private ImageView picture;
-    private Uri imageUri;
+    private Uri imageUri;  //图片的输出地址
 
     private SensorManager mSensorManager;
     private TextView mTxtValue1;
 
-
     public static final String TAG = "fetchValues";
 
-    private double[] mChangedAcc = new double[3];  // 加速度值带累加
-    private double[] mAccVel = new double[3];  // 速度值待累加
-    private double[] mAccDisp = new double[3];  // 位移量待累加
+    private double[] mDeltaAvgAcc = new double[3];  // 任一切片时间内，加速度的变化量
+    private double[] mAccVel = new double[3];  // 由连续切片间，累加的速度
+    private double[] mAccDisp = new double[3];  // 由连续切片间，累加的位移
     private List<Double> mPointsDisp;  // 不同拍照地点之间的距离
     private float[] mPrevAcc = new float[3];  // 前一刻的加速度值
     private double mPrevTime;  // 前一刻的时间
-    private double mChangedTime;  //前后刻的变化时间，一般作切片时间的区长
+    private double mDeltaTime;  //前后刻的变化时间，一般作切片时间的区长
+
+    private int mTrigger_ResetAcc = 2;  //得想个状态信号，使得每两次拍照都要重置累加用途得变量
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,6 +99,10 @@ public class MainActivity extends AppCompatActivity
                     e.printStackTrace();
                 }
 
+                // 以时间戳命名拍照文件
+                // todo
+
+
                 if (Build.VERSION.SDK_INT >= 24) {
                     imageUri = FileProvider.getUriForFile(MainActivity.this,
                             "com.guzhuo.cameraalbumtest.fileprovider",
@@ -96,9 +110,15 @@ public class MainActivity extends AppCompatActivity
                 } else {
                     imageUri = Uri.fromFile(outputImage);
                 }
+
                 // 启动相机程序
                 Intent intent = new Intent("android.media.action.IMAGE_CAPTURE");
+
+                // 拍照后的保存路径
                 intent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
+
+                // 启用快捷拍照，取消拍照后的确认预览
+                intent.putExtra("android.intent.extra.quickCapture", true);
                 startActivityForResult(intent, TAKE_PHOTO);
             }
         });
@@ -147,25 +167,21 @@ public class MainActivity extends AppCompatActivity
         switch (event.sensor.getType()) {
             case Sensor.TYPE_LINEAR_ACCELERATION:
                 double curTime = System.currentTimeMillis();
-                mChangedTime = (curTime - mPrevTime)/ 1000;
+                mDeltaTime = (curTime - mPrevTime)/ 1000;
 
 
                 // 切片时间内的平均加速度
                 for (int i = 0; i < event.values.length; i++) {
-                    mChangedAcc[i] = (event.values[i] + mPrevAcc[i]) * 0.5;
+                    mDeltaAvgAcc[i] = (event.values[i] + mPrevAcc[i]) * 0.5;
                 }
 
                 // 切片时间内的位移量，视作匀加速运动
-                double mChangedTime_Pow2 = mChangedTime * mChangedTime;
-                double disp_x = mAccVel[0] * mChangedTime + 0.5 * mChangedAcc[0] * mChangedTime_Pow2;
-                double disp_y = mAccVel[1] * mChangedTime + 0.5 * mChangedAcc[1] * mChangedTime_Pow2;
-                double disp_z = mAccVel[2] * mChangedTime + 0.5 * mChangedAcc[2] * mChangedTime_Pow2;
+                double mDeltaTime_Pow2 = mDeltaTime * mDeltaTime;
+                double disp_x = mAccVel[0] * mDeltaTime + 0.5 * mDeltaAvgAcc[0] * mDeltaTime_Pow2;
+                double disp_y = mAccVel[1] * mDeltaTime + 0.5 * mDeltaAvgAcc[1] * mDeltaTime_Pow2;
+                double disp_z = mAccVel[2] * mDeltaTime + 0.5 * mDeltaAvgAcc[2] * mDeltaTime_Pow2;
 
-                Log.w(TAG, "onSensorChanged: mChangedTime: " + mChangedTime);
-                for (int i = 0; i < 3; i++) {
-                    Log.w(TAG, "onSensorChanged: mChangedAcc[" + i + "]: " + mChangedAcc[i]);
-                }
-
+                Log.w(TAG, "onSensorChanged: mDeltaTime: " + mDeltaTime);
 
                 // 更新位移量
                 mAccDisp[0] += disp_x;
@@ -173,9 +189,9 @@ public class MainActivity extends AppCompatActivity
                 mAccDisp[2] += disp_z;
                 // 更新时间
                 mPrevTime = curTime;
-                // 更新速度，上一刻加速度
+                // 更新：本次切片时间内的平均速度，上一切片时间末的加速度
                 for (int i = 0; i < event.values.length; i++) {
-                    mAccVel[i] += mChangedAcc[i] * mChangedTime;
+                    mAccVel[i] += mDeltaAvgAcc[i] * mDeltaTime;
                     Log.w(TAG, "onSensorChanged: mAccVel[" + i + "]: " + mAccVel[i]);
                     mPrevAcc[i] = event.values[i];
                 }
@@ -215,10 +231,20 @@ public class MainActivity extends AppCompatActivity
                         fetchValues();
                         // 将位移量置0
                         mAccDisp = new double[3];
-                }
+                    }
+
+                    if (mTrigger_ResetAcc == 0) {
+                        mAccVel= new double[3];
+                        Log.w(TAG, "onActivityResult: mTrigger_ResetAcc --> mAccVel init: " + mAccVel[0]);
+                    }else {
+                        mTrigger_ResetAcc--;
+                    }
 
 
                     try {
+                        // 将图片插入到系统图库
+                        // todo
+
                         // 将拍摄的照片显示出来
                         Bitmap bitmap = BitmapFactory.decodeStream(getContentResolver()
                                 .openInputStream(imageUri));
@@ -226,6 +252,10 @@ public class MainActivity extends AppCompatActivity
                     } catch (FileNotFoundException e) {
                         e.printStackTrace();
                     }
+
+                    // 广播通知图库刷新
+                    // todo
+
                 }
 
                 break;
@@ -328,13 +358,14 @@ public class MainActivity extends AppCompatActivity
      * 将本次测距结果加入 mPointsDisp
      */
     private void fetchValues() {
-        mPointsDisp.add(Math.sqrt(mAccDisp[0] * mAccDisp[0] + mAccDisp[1] * mAccDisp[1] + mAccDisp[2] * mAccDisp[2]));
+        mPointsDisp.add(Math.sqrt(mAccDisp[0] * mAccDisp[0] + mAccDisp[1] * mAccDisp[1]));
         mTxtValue1.setText(mPointsDisp
                 .get(mPointsDisp.size()-1)
                 .toString());
 
         Log.w(TAG, "fetchValues: mAccVel: " + (mAccVel[0] * mAccVel[0] + mAccVel[1] * mAccVel[1] + mAccVel[2] * mAccVel[2]));
         Log.w(TAG, "fetchValues: mPointsDisp.size(" + mPointsDisp.size() + "), " + "mPointsDisp: " + mPointsDisp);
+
     }
 
 
