@@ -63,7 +63,7 @@ public class MainActivity extends AppCompatActivity
 
     private double[] mDeltaAvgAcc = new double[3];  // 任一切片时间内，加速度的变化量
     private double[] mAccVel = new double[3];  // 由连续切片间，累加的速度
-    private double[] mAccDisp = new double[3];  // 由连续切片间，累加的位移
+    private double[] mDeltaDisp = new double[3];  // 由连续切片间，累加的位移
     private List<Double> mPointsDisp;  // 不同拍照地点之间的距离
     private float[] mPrevAcc = new float[3];  // 前一刻的加速度值
     private double mPrevTime;  // 前一刻的时间
@@ -87,6 +87,12 @@ public class MainActivity extends AppCompatActivity
         takePhoto.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                /**
+                 * 首次，初始化代数因子
+                 * 此外，获取代数，及 mDeltaDisp 置0
+                 */
+                initValues();
+
                 // 创建 File 对象，用于存储由拍照得到的图片 output_image.jpg
                 File outputImage = new File(getExternalCacheDir(), "output_image.jpg");
 
@@ -120,6 +126,7 @@ public class MainActivity extends AppCompatActivity
                 // 启用快捷拍照，取消拍照后的确认预览
                 intent.putExtra("android.intent.extra.quickCapture", true);
                 startActivityForResult(intent, TAKE_PHOTO);
+
             }
         });
 
@@ -166,43 +173,30 @@ public class MainActivity extends AppCompatActivity
 
         switch (event.sensor.getType()) {
             case Sensor.TYPE_LINEAR_ACCELERATION:
-                double curTime = System.currentTimeMillis();
-                mDeltaTime = (curTime - mPrevTime)/ 1000;
-
-
-                // 切片时间内的平均加速度
-                for (int i = 0; i < event.values.length; i++) {
-                    mDeltaAvgAcc[i] = (event.values[i] + mPrevAcc[i]) * 0.5;
-                }
-
-                // 切片时间内的位移量，视作匀加速运动
+                double curTime = System.currentTimeMillis();  // 以微秒,记录当前时间
+                mDeltaTime = (curTime - mPrevTime)/ 1000;  // 以秒,记录切片时间长度
                 double mDeltaTime_Pow2 = mDeltaTime * mDeltaTime;
-                double disp_x = mAccVel[0] * mDeltaTime + 0.5 * mDeltaAvgAcc[0] * mDeltaTime_Pow2;
-                double disp_y = mAccVel[1] * mDeltaTime + 0.5 * mDeltaAvgAcc[1] * mDeltaTime_Pow2;
-                double disp_z = mAccVel[2] * mDeltaTime + 0.5 * mDeltaAvgAcc[2] * mDeltaTime_Pow2;
 
-                Log.w(TAG, "onSensorChanged: mDeltaTime: " + mDeltaTime);
-
-                // 更新位移量
-                mAccDisp[0] += disp_x;
-                mAccDisp[1] += disp_y;
-                mAccDisp[2] += disp_z;
-                // 更新时间
-                mPrevTime = curTime;
-                // 更新：本次切片时间内的平均速度，上一切片时间末的加速度
+                // 应对 xyz 轴相关的代数运算
                 for (int i = 0; i < event.values.length; i++) {
+                    // 切片时间内的平均加速度
+                    mDeltaAvgAcc[i] = (event.values[i] + mPrevAcc[i]) * 0.5;
+                    // 切片时间内的位移量，视作匀加速运动
+                    mDeltaDisp[i] = mAccVel[i] * mDeltaTime + 0.5 * mDeltaAvgAcc[i] * mDeltaTime_Pow2;
+
+                    // 更新：本次切片时间内的平均速度，上一切片时间末的加速度
                     mAccVel[i] += mDeltaAvgAcc[i] * mDeltaTime;
-                    Log.w(TAG, "onSensorChanged: mAccVel[" + i + "]: " + mAccVel[i]);
                     mPrevAcc[i] = event.values[i];
                 }
+                Log.w(TAG, "onSensorChanged::mDeltaDisp[].model:" + Math.sqrt(mDeltaDisp[0] * mDeltaDisp[0] + mDeltaDisp[1] * mDeltaDisp[1] + mDeltaDisp[2] * mDeltaDisp[2]));
+
+                // 更新时间
+                mPrevTime = curTime;
 
                 break;
             case Sensor.TYPE_ORIENTATION:
                 break;
         }
-
-
-
     }
 
     @Override
@@ -217,30 +211,6 @@ public class MainActivity extends AppCompatActivity
         switch (requestCode) {
             case TAKE_PHOTO:
                 if (resultCode == RESULT_OK) {
-                    /**
-                     * 在回调函数中，判断若为首次拍照，则初始化相关变量/ 代数因子
-                     * GO!
-                     */
-                    if (mPointsDisp == null) {
-                        // 首次拍照，初始化代数因子
-                        mPrevTime = System.currentTimeMillis();
-                        mAccVel = new double[3];
-                        mAccDisp = new double[3];
-                        mPointsDisp = new ArrayList<>();
-                    }else {
-                        fetchValues();
-                        // 将位移量置0
-                        mAccDisp = new double[3];
-                    }
-
-                    if (mTrigger_ResetAcc == 0) {
-                        mAccVel= new double[3];
-                        Log.w(TAG, "onActivityResult: mTrigger_ResetAcc --> mAccVel init: " + mAccVel[0]);
-                    }else {
-                        mTrigger_ResetAcc--;
-                    }
-
-
                     try {
                         // 将图片插入到系统图库
                         // todo
@@ -355,10 +325,37 @@ public class MainActivity extends AppCompatActivity
     }
 
     /**
+     * 若在回调函数中，则用于判断，若为首次拍照，则初始化相关变量/ 代数因子
+     */
+    private void initValues() {
+        // GO!
+        if (mPointsDisp == null) {
+            // 首次拍照，初始化代数因子
+            mPrevTime = System.currentTimeMillis();
+            mAccVel = new double[3];
+            mDeltaDisp = new double[3];
+            mPointsDisp = new ArrayList<>();
+        }else {
+            fetchValues();
+            // 将位移量置0
+            mDeltaDisp = new double[3];
+        }
+
+        // 每拍两次就将当前速度预先置0，阻断干扰
+        if (mTrigger_ResetAcc == 0) {
+            mTrigger_ResetAcc = 2;
+            mAccVel= new double[3];
+        }else {
+            mTrigger_ResetAcc--;
+        }
+    }
+
+
+    /**
      * 将本次测距结果加入 mPointsDisp
      */
     private void fetchValues() {
-        mPointsDisp.add(Math.sqrt(mAccDisp[0] * mAccDisp[0] + mAccDisp[1] * mAccDisp[1]));
+        mPointsDisp.add(Math.sqrt(mDeltaDisp[0] * mDeltaDisp[0] + mDeltaDisp[1] * mDeltaDisp[1] + mDeltaDisp[2] * mDeltaDisp[2]));
         mTxtValue1.setText(mPointsDisp
                 .get(mPointsDisp.size()-1)
                 .toString());
