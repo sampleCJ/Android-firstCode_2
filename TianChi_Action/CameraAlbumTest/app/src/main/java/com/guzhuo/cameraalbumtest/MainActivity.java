@@ -44,12 +44,6 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity
         implements SensorEventListener {
 
-    // 系统相册的路径
-    String sysAlbumPath = Environment.getExternalStorageDirectory() +
-            File.separator + Environment.DIRECTORY_DCIM +
-            File.separator + "Camera" +
-            File.separator;
-
     public static final int TAKE_PHOTO = 1;
     public static final int CHOOSE_PHOTO = 2;
 
@@ -58,6 +52,8 @@ public class MainActivity extends AppCompatActivity
 
     private SensorManager mSensorManager;
     private TextView mTxtValue1;
+    private TextView mTxtValue2;
+    private TextView mTxtValue3;
 
     public static final String TAG = "fetchValues";
 
@@ -69,8 +65,6 @@ public class MainActivity extends AppCompatActivity
     private double mPrevTime;  // 前一刻的时间
     private double mDeltaTime;  //前后刻的变化时间，一般作切片时间的区长
 
-    private int mTrigger_ResetAcc = 2;  //得想个状态信号，使得每两次拍照都要重置累加用途得变量
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -81,6 +75,8 @@ public class MainActivity extends AppCompatActivity
         picture = (ImageView) findViewById(R.id.picture);
         // ---
         mTxtValue1 = (TextView) findViewById(R.id.txt_value1);
+        mTxtValue2 = (TextView) findViewById(R.id.txt_value2);
+        mTxtValue3 = (TextView) findViewById(R.id.txt_value3);
         // 获取传感器管理器
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
 
@@ -89,7 +85,7 @@ public class MainActivity extends AppCompatActivity
             public void onClick(View v) {
                 /**
                  * 首次，初始化代数因子
-                 * 此外，获取代数，及 mDeltaDisp 置0
+                 * 此外，获取最新代数，及将 mDeltaDisp 置0
                  */
                 initValues();
 
@@ -188,10 +184,17 @@ public class MainActivity extends AppCompatActivity
                     mAccVel[i] += mDeltaAvgAcc[i] * mDeltaTime;
                     mPrevAcc[i] = event.values[i];
                 }
-                Log.w(TAG, "onSensorChanged::mDeltaDisp[].model:" + Math.sqrt(mDeltaDisp[0] * mDeltaDisp[0] + mDeltaDisp[1] * mDeltaDisp[1] + mDeltaDisp[2] * mDeltaDisp[2]));
 
                 // 更新时间
                 mPrevTime = curTime;
+
+                // 在终端上实时刷新
+                mTxtValue2.setText("mDeltaAvgAcc[].model:" + String.valueOf(Math.sqrt(mDeltaAvgAcc[0] * mDeltaAvgAcc[0] + mDeltaAvgAcc[1] * mDeltaAvgAcc[1] + mDeltaAvgAcc[2] * mDeltaAvgAcc[2])));
+                mTxtValue3.setText("mAccVel[].model:" + String.valueOf(Math.sqrt(mAccVel[0] * mAccVel[0] + mAccVel[1] * mAccVel[1] + mAccVel[2] * mAccVel[2])));
+                mTxtValue1.setText("mDeltaDisp[].model:" + String.valueOf(Math.sqrt(mDeltaDisp[0] * mDeltaDisp[0] + mDeltaDisp[1] * mDeltaDisp[1] + mDeltaDisp[2] * mDeltaDisp[2])));
+
+                mAccVel = new double[3];
+                mDeltaDisp = new double[3];
 
                 break;
             case Sensor.TYPE_ORIENTATION:
@@ -341,13 +344,6 @@ public class MainActivity extends AppCompatActivity
             mDeltaDisp = new double[3];
         }
 
-        // 每拍两次就将当前速度预先置0，阻断干扰
-        if (mTrigger_ResetAcc == 0) {
-            mTrigger_ResetAcc = 2;
-            mAccVel= new double[3];
-        }else {
-            mTrigger_ResetAcc--;
-        }
     }
 
 
@@ -355,10 +351,10 @@ public class MainActivity extends AppCompatActivity
      * 将本次测距结果加入 mPointsDisp
      */
     private void fetchValues() {
-        mPointsDisp.add(Math.sqrt(mDeltaDisp[0] * mDeltaDisp[0] + mDeltaDisp[1] * mDeltaDisp[1] + mDeltaDisp[2] * mDeltaDisp[2]));
-        mTxtValue1.setText(mPointsDisp
-                .get(mPointsDisp.size()-1)
-                .toString());
+//        mPointsDisp.add(Math.sqrt(mDeltaDisp[0] * mDeltaDisp[0] + mDeltaDisp[1] * mDeltaDisp[1] + mDeltaDisp[2] * mDeltaDisp[2]));
+//        mTxtValue1.setText(mPointsDisp
+//                .get(mPointsDisp.size()-1)
+//                .toString());
 
         Log.w(TAG, "fetchValues: mAccVel: " + (mAccVel[0] * mAccVel[0] + mAccVel[1] * mAccVel[1] + mAccVel[2] * mAccVel[2]));
         Log.w(TAG, "fetchValues: mPointsDisp.size(" + mPointsDisp.size() + "), " + "mPointsDisp: " + mPointsDisp);
