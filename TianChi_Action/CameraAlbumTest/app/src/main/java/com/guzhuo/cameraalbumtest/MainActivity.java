@@ -44,26 +44,37 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity
         implements SensorEventListener {
 
+    // 摄像头回调状态信号
     public static final int TAKE_PHOTO = 1;
     public static final int CHOOSE_PHOTO = 2;
 
+    // 相片输出路径封装相关变量
     private ImageView picture;
     private Uri imageUri;  //图片的输出地址
 
     private SensorManager mSensorManager;
+    // 为方向传感器，需要加速度传感器和地磁场传感器提供数据
+    private Sensor mAccelerometerSensor;
+    private Sensor mMagneticSensor;
+
+    private float[] mAccelerometerValues = new float[3];
+    private float[] mMagneticVaglues = new float[3];
+    private float[] mRotationMatrix_Cur = new float[9];
+    private float[] mRotationMatrix_Prev = new float[9];
+
+    // 计算手机偏移量，相关变量
+    private double[] mDeltaAvgAcc = new double[3];  // 任一切片时间内，加速度的变化量
+    private double[] mAccVel;  // 由连续切片间，累加的速度
+    private double[] mDeltaDisp;  // 由连续切片间，累加的位移
+    private List<Double> mPointsDisp;  // 不同拍照地点之间的距离
+    private float[] mAcc_Prev = new float[3];  // 前一刻的加速度值
+    private double mPrevTime;  // 前一刻的时间
+    private double mDeltaTime;  //前后刻的变化时间，一般作切片时间的区长
+
     private TextView mTxtValue1;
     private TextView mTxtValue2;
     private TextView mTxtValue3;
-
     public static final String TAG = "fetchValues";
-
-    private double[] mDeltaAvgAcc = new double[3];  // 任一切片时间内，加速度的变化量
-    private double[] mAccVel = new double[3];  // 由连续切片间，累加的速度
-    private double[] mDeltaDisp = new double[3];  // 由连续切片间，累加的位移
-    private List<Double> mPointsDisp;  // 不同拍照地点之间的距离
-    private float[] mPrevAcc = new float[3];  // 前一刻的加速度值
-    private double mPrevTime;  // 前一刻的时间
-    private double mDeltaTime;  //前后刻的变化时间，一般作切片时间的区长
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,11 +84,13 @@ public class MainActivity extends AppCompatActivity
         Button takePhoto = (Button) findViewById(R.id.take_photo);
         Button chooseFromAlbum = (Button) findViewById(R.id.choose_from_album);
         picture = (ImageView) findViewById(R.id.picture);
+
         // ---
         mTxtValue1 = (TextView) findViewById(R.id.txt_value1);
         mTxtValue2 = (TextView) findViewById(R.id.txt_value2);
         mTxtValue3 = (TextView) findViewById(R.id.txt_value3);
-        // 获取传感器管理器
+
+        // 实例化传感器管理器
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
 
         takePhoto.setOnClickListener(new View.OnClickListener() {
@@ -104,7 +117,6 @@ public class MainActivity extends AppCompatActivity
                 // 以时间戳命名拍照文件
                 // todo
 
-
                 if (Build.VERSION.SDK_INT >= 24) {
                     imageUri = FileProvider.getUriForFile(MainActivity.this,
                             "com.guzhuo.cameraalbumtest.fileprovider",
@@ -122,7 +134,6 @@ public class MainActivity extends AppCompatActivity
                 // 启用快捷拍照，取消拍照后的确认预览
                 intent.putExtra("android.intent.extra.quickCapture", true);
                 startActivityForResult(intent, TAKE_PHOTO);
-
             }
         });
 
@@ -144,13 +155,17 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
-        // 为加速度传感器注册监听器
+        // 为线性加速度传感器注册监听器
         mSensorManager.registerListener(this,
                 mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION),
                 SensorManager.SENSOR_DELAY_GAME);
-        // 为方向传感器注册监听器
+        // 为加速度传感器注册监听器
         mSensorManager.registerListener(this,
-                mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),  // 不建议的注册方式
+                mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
+                SensorManager.SENSOR_DELAY_GAME);
+        // 为地磁场传感器注册监听器
+        mSensorManager.registerListener(this,
+                mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
                 SensorManager.SENSOR_DELAY_GAME);
     }
 
@@ -163,7 +178,6 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-
         // 如是，则表示现未进入计算状态
         if (mPointsDisp == null) return;
 
@@ -171,33 +185,48 @@ public class MainActivity extends AppCompatActivity
             case Sensor.TYPE_LINEAR_ACCELERATION:
                 double curTime = System.currentTimeMillis();  // 以微秒,记录当前时间
                 mDeltaTime = (curTime - mPrevTime)/ 1000;  // 以秒,记录切片时间长度
+                mRotationMatrix_Cur = calculateOrientation();  // 旋转矩阵，以帮助获得相对参考坐标系的加速度
+
                 double mDeltaTime_Pow2 = mDeltaTime * mDeltaTime;
+                int APCoefficient = 1; // 等差系数，以帮助计算矩阵乘法
 
                 // 应对 xyz 轴相关的代数运算
                 for (int i = 0; i < event.values.length; i++) {
-                    // 切片时间内的平均加速度
-                    mDeltaAvgAcc[i] = (event.values[i] + mPrevAcc[i]) * 0.5;
+                    // 使用旋转矩阵，计算切片时间内的平均加速度
+                    mDeltaAvgAcc[i] = 0.5 *
+                            (
+                                    (mRotationMatrix_Cur[i+(APCoefficient-1)*2] * event.values[i] + mRotationMatrix_Cur[i+1+(APCoefficient-1)*2] * event.values[i+1] + mRotationMatrix_Cur[i+2+(APCoefficient-1)*2] * event.values[i+2]) +
+                                    (mRotationMatrix_Prev[i+(APCoefficient-1)*2] * mAcc_Prev[i] + mRotationMatrix_Prev[i+1+(APCoefficient-1)*2] * mAcc_Prev[i+1] + mRotationMatrix_Prev[i+2+(APCoefficient-1)*2] * mAcc_Prev[i+2])
+                            );
+                    APCoefficient++;
+
                     // 切片时间内的位移量，视作匀加速运动
                     mDeltaDisp[i] = mAccVel[i] * mDeltaTime + 0.5 * mDeltaAvgAcc[i] * mDeltaTime_Pow2;
 
                     // 更新：本次切片时间内的平均速度，上一切片时间末的加速度
                     mAccVel[i] += mDeltaAvgAcc[i] * mDeltaTime;
-                    mPrevAcc[i] = event.values[i];
+                    mAcc_Prev[i] = event.values[i];
                 }
 
-                // 更新时间
+                // 记录上一刻时间（两刻时间标定切片时间长度）
                 mPrevTime = curTime;
+                // 记录上一刻旋转矩阵
+                mRotationMatrix_Prev = mRotationMatrix_Cur;
 
                 // 在终端上实时刷新
                 mTxtValue2.setText("mDeltaAvgAcc[].model:" + String.valueOf(Math.sqrt(mDeltaAvgAcc[0] * mDeltaAvgAcc[0] + mDeltaAvgAcc[1] * mDeltaAvgAcc[1] + mDeltaAvgAcc[2] * mDeltaAvgAcc[2])));
                 mTxtValue3.setText("mAccVel[].model:" + String.valueOf(Math.sqrt(mAccVel[0] * mAccVel[0] + mAccVel[1] * mAccVel[1] + mAccVel[2] * mAccVel[2])));
                 mTxtValue1.setText("mDeltaDisp[].model:" + String.valueOf(Math.sqrt(mDeltaDisp[0] * mDeltaDisp[0] + mDeltaDisp[1] * mDeltaDisp[1] + mDeltaDisp[2] * mDeltaDisp[2])));
 
-                mAccVel = new double[3];
-                mDeltaDisp = new double[3];
+//                mAccVel = new double[3];
+//                mDeltaDisp = new double[3];
 
                 break;
-            case Sensor.TYPE_ORIENTATION:
+            case Sensor.TYPE_ACCELEROMETER:
+                mAccelerometerValues = event.values;
+                break;
+            case Sensor.TYPE_MAGNETIC_FIELD:
+                mMagneticVaglues = event.values;
                 break;
         }
     }
@@ -328,7 +357,22 @@ public class MainActivity extends AppCompatActivity
     }
 
     /**
-     * 若在回调函数中，则用于判断，若为首次拍照，则初始化相关变量/ 代数因子
+     * 使用方向传感器，及其他数据来源，计算方向
+     */
+    private float[] calculateOrientation() {
+        float[] values = new float[3];
+        float[] R = new float[9];
+
+        SensorManager.getRotationMatrix(R, null, mAccelerometerValues, mMagneticVaglues);
+        SensorManager.getOrientation(R, values);
+
+        return R;
+    }
+
+    /**
+     * 若在回调函数中，则用于判断
+     * 首次拍照：初始化相关变量/ 代数因子
+     *
      */
     private void initValues() {
         // GO!
