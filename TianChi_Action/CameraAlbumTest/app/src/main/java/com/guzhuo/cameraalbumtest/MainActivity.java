@@ -186,17 +186,16 @@ public class MainActivity extends AppCompatActivity
                 double curTime = System.currentTimeMillis();  // 以微秒,记录当前时间
                 mDeltaTime = (curTime - mPrevTime)/ 1000;  // 以秒,记录切片时间长度
                 mRotationMatrix_Cur = calculateOrientation();  // 旋转矩阵，以帮助获得相对参考坐标系的加速度
-
                 double mDeltaTime_Pow2 = mDeltaTime * mDeltaTime;
-                int APCoefficient = 1; // 等差系数，以帮助计算矩阵乘法
 
                 // 应对 xyz 轴相关的代数运算
                 for (int i = 0; i < event.values.length; i++) {
                     // 使用旋转矩阵，计算切片时间内的平均加速度
+                    // 等差系数 APCoefficient 的算式， APCofficient - 1 == i
                     mDeltaAvgAcc[i] = 0.5 *
                             (
-                                    (mRotationMatrix_Cur[i+(APCoefficient-1)*2] * event.values[i] + mRotationMatrix_Cur[i+1+(APCoefficient-1)*2] * event.values[i+1] + mRotationMatrix_Cur[i+2+(APCoefficient-1)*2] * event.values[i+2]) +
-                                    (mRotationMatrix_Prev[i+(APCoefficient-1)*2] * mAcc_Prev[i] + mRotationMatrix_Prev[i+1+(APCoefficient-1)*2] * mAcc_Prev[i+1] + mRotationMatrix_Prev[i+2+(APCoefficient-1)*2] * mAcc_Prev[i+2])
+                                    (mRotationMatrix_Cur[i*3] * event.values[i] + mRotationMatrix_Cur[i*3+1] * event.values[i+1] + mRotationMatrix_Cur[i*3+2] * event.values[i+2]) +
+                                    (mRotationMatrix_Prev[i*3] * mAcc_Prev[i] + mRotationMatrix_Prev[i*3+1] * mAcc_Prev[i+1] + mRotationMatrix_Prev[i*3+2] * mAcc_Prev[i+2])
                             );
                     APCoefficient++;
 
