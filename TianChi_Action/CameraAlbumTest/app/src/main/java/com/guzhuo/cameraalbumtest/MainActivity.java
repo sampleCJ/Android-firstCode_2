@@ -192,12 +192,17 @@ public class MainActivity extends AppCompatActivity
                 for (int i = 0; i < event.values.length; i++) {
                     // 使用旋转矩阵，计算切片时间内的平均加速度
                     // 等差系数 APCoefficient 的算式， APCofficient - 1 == i
-                    mDeltaAvgAcc[i] = 0.5 *
-                            (
-                                    (mRotationMatrix_Cur[i*3] * event.values[i] + mRotationMatrix_Cur[i*3+1] * event.values[i+1] + mRotationMatrix_Cur[i*3+2] * event.values[i+2]) +
-                                    (mRotationMatrix_Prev[i*3] * mAcc_Prev[i] + mRotationMatrix_Prev[i*3+1] * mAcc_Prev[i+1] + mRotationMatrix_Prev[i*3+2] * mAcc_Prev[i+2])
-                            );
-                    APCoefficient++;
+                    // 判断，旋转矩阵 mRotationMatrix_Cur [3x3]
+                    if (mRotationMatrix_Cur.length == 9) {
+                        mDeltaAvgAcc[i] = 0.5 *
+                                (
+                                        (mRotationMatrix_Cur[i*3] * event.values[i] + mRotationMatrix_Cur[i*3+1] * event.values[i+1] + mRotationMatrix_Cur[i*3+2] * event.values[i+2]) +
+                                        (mRotationMatrix_Prev[i*3] * mAcc_Prev[i] + mRotationMatrix_Prev[i*3+1] * mAcc_Prev[i+1] + mRotationMatrix_Prev[i*3+2] * mAcc_Prev[i+2])
+                                );
+                    }else {
+                        Log.w(TAG, "onSensorChanged: mRotationMatrix_Cur isnot 3x3 matrix, I am afraid");
+                        return;
+                    }
 
                     // 切片时间内的位移量，视作匀加速运动
                     mDeltaDisp[i] = mAccVel[i] * mDeltaTime + 0.5 * mDeltaAvgAcc[i] * mDeltaTime_Pow2;
@@ -207,9 +212,9 @@ public class MainActivity extends AppCompatActivity
                     mAcc_Prev[i] = event.values[i];
                 }
 
-                // 记录上一刻时间（两刻时间标定切片时间长度）
+                // 更新为上一刻时间，以此标定切片时间长度
                 mPrevTime = curTime;
-                // 记录上一刻旋转矩阵
+                // 更新为上一刻旋转矩阵
                 mRotationMatrix_Prev = mRotationMatrix_Cur;
 
                 // 在终端上实时刷新
