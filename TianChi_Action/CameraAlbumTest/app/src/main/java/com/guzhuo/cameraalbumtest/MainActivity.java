@@ -186,22 +186,22 @@ public class MainActivity extends AppCompatActivity
                 double curTime = System.currentTimeMillis();  // 以微秒,记录当前时间
                 mDeltaTime = (curTime - mPrevTime)/ 1000;  // 以秒,记录切片时间长度
                 mRotationMatrix_Cur = calculateOrientation();  // 旋转矩阵，以帮助获得相对参考坐标系的加速度
+
                 double mDeltaTime_Pow2 = mDeltaTime * mDeltaTime;
 
                 // 应对 xyz 轴相关的代数运算
                 for (int i = 0; i < event.values.length; i++) {
-                    // 使用旋转矩阵，计算切片时间内的平均加速度
-                    // 等差系数 APCoefficient 的算式， APCofficient - 1 == i
-                    // 判断，旋转矩阵 mRotationMatrix_Cur [3x3]
                     if (mRotationMatrix_Cur.length == 9) {
+                        // 使用旋转矩阵辅助计算，切片时间内的平均加速度
+                        // 矩阵乘法 (R1 * a1 + R0 * a0) * 0.5
+                        // R1, R0: [3x3], a1, a0: [3x1]
                         mDeltaAvgAcc[i] = 0.5 *
                                 (
-                                        (mRotationMatrix_Cur[i*3] * event.values[i] + mRotationMatrix_Cur[i*3+1] * event.values[i+1] + mRotationMatrix_Cur[i*3+2] * event.values[i+2]) +
-                                        (mRotationMatrix_Prev[i*3] * mAcc_Prev[i] + mRotationMatrix_Prev[i*3+1] * mAcc_Prev[i+1] + mRotationMatrix_Prev[i*3+2] * mAcc_Prev[i+2])
+                                        (mRotationMatrix_Cur[i*3] * event.values[0] + mRotationMatrix_Cur[i*3 + 1] * event.values[1] + mRotationMatrix_Cur[i*3 + 2] * event.values[2]) +
+                                        (mRotationMatrix_Prev[i*3] * mAcc_Prev[0] + mRotationMatrix_Prev[i*3 + 1] * mAcc_Prev[1] + mRotationMatrix_Prev[i*3 + 2] * mAcc_Prev[2])
                                 );
                     }else {
-                        Log.w(TAG, "onSensorChanged: mRotationMatrix_Cur isnot 3x3 matrix, I am afraid");
-                        return;
+                        Log.w(TAG, "onSensorChanged: Cannot calculate mRotationMatrix 4x4");
                     }
 
                     // 切片时间内的位移量，视作匀加速运动
@@ -212,9 +212,9 @@ public class MainActivity extends AppCompatActivity
                     mAcc_Prev[i] = event.values[i];
                 }
 
-                // 更新为上一刻时间，以此标定切片时间长度
+                // 记录上一刻时间（两刻时间标定切片时间长度）
                 mPrevTime = curTime;
-                // 更新为上一刻旋转矩阵
+                // 记录上一刻旋转矩阵
                 mRotationMatrix_Prev = mRotationMatrix_Cur;
 
                 // 在终端上实时刷新
@@ -369,6 +369,11 @@ public class MainActivity extends AppCompatActivity
 
         SensorManager.getRotationMatrix(R, null, mAccelerometerValues, mMagneticVaglues);
         SensorManager.getOrientation(R, values);
+
+        // 旋转矩阵 R 由弧度制变换为角度
+        for(int i = 0; i < R.length; i++) {
+            R[i] = Math.toDegrees(R[i]);
+        }
 
         return R;
     }
