@@ -93,6 +93,19 @@ public class MainActivity extends AppCompatActivity
         // 实例化传感器管理器
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
 
+        // 为线性加速度传感器注册监听器
+        mSensorManager.registerListener(this,
+                mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION),
+                SensorManager.SENSOR_DELAY_GAME);
+        // 为加速度传感器注册监听器
+        mSensorManager.registerListener(this,
+                mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
+                SensorManager.SENSOR_DELAY_GAME);
+        // 为地磁场传感器注册监听器
+        mSensorManager.registerListener(this,
+                mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
+                SensorManager.SENSOR_DELAY_GAME);
+
         takePhoto.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -155,18 +168,6 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
-        // 为线性加速度传感器注册监听器
-        mSensorManager.registerListener(this,
-                mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION),
-                SensorManager.SENSOR_DELAY_GAME);
-        // 为加速度传感器注册监听器
-        mSensorManager.registerListener(this,
-                mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
-                SensorManager.SENSOR_DELAY_GAME);
-        // 为地磁场传感器注册监听器
-        mSensorManager.registerListener(this,
-                mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
-                SensorManager.SENSOR_DELAY_GAME);
     }
 
     @Override
@@ -371,9 +372,7 @@ public class MainActivity extends AppCompatActivity
         SensorManager.getOrientation(R, values);
 
         // 旋转矩阵 R 由弧度制变换为角度
-        for(int i = 0; i < R.length; i++) {
-            R[i] = Math.toDegrees(R[i]);
-        }
+
 
         return R;
     }
