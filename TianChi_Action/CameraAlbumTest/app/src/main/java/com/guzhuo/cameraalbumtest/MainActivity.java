@@ -93,6 +93,19 @@ public class MainActivity extends AppCompatActivity
         // 实例化传感器管理器
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
 
+        // 为线性加速度传感器注册监听器
+        mSensorManager.registerListener(this,
+                mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION),
+                SensorManager.SENSOR_DELAY_GAME);
+        // 为加速度传感器注册监听器
+        mSensorManager.registerListener(this,
+                mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
+                SensorManager.SENSOR_DELAY_GAME);
+        // 为地磁场传感器注册监听器
+        mSensorManager.registerListener(this,
+                mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
+                SensorManager.SENSOR_DELAY_GAME);
+
         takePhoto.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -153,20 +166,13 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
-        // 为线性加速度传感器注册监听器
-        mSensorManager.registerListener(this,
-                mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION),
-                SensorManager.SENSOR_DELAY_GAME);
-        // 为加速度传感器注册监听器
-        mSensorManager.registerListener(this,
-                mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
-                SensorManager.SENSOR_DELAY_GAME);
-        // 为地磁场传感器注册监听器
-        mSensorManager.registerListener(this,
-                mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
-                SensorManager.SENSOR_DELAY_GAME);
     }
 
     @Override
@@ -193,7 +199,7 @@ public class MainActivity extends AppCompatActivity
                 for (int i = 0; i < event.values.length; i++) {
                     if (mRotationMatrix_Cur.length == 9) {
                         // 使用旋转矩阵辅助计算，切片时间内的平均加速度
-                        // 矩阵乘法 (R1 * a1 + R0 * a0) * 0.5
+                        // 进行矩阵乘法 (R1 * a1 + R0 * a0) * 0.5
                         // R1, R0: [3x3], a1, a0: [3x1]
                         mDeltaAvgAcc[i] = 0.5 *
                                 (
@@ -371,9 +377,7 @@ public class MainActivity extends AppCompatActivity
         SensorManager.getOrientation(R, values);
 
         // 旋转矩阵 R 由弧度制变换为角度
-        for(int i = 0; i < R.length; i++) {
-            R[i] = Math.toDegrees(R[i]);
-        }
+        // todo?
 
         return R;
     }
