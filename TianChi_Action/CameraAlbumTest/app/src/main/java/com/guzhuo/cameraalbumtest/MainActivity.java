@@ -46,7 +46,6 @@ public class MainActivity extends AppCompatActivity
 
     // 摄像头回调状态信号
     public static final int TAKE_PHOTO = 1;
-    public static final int CHOOSE_PHOTO = 2;
 
     // 相片输出路径封装相关变量
     private ImageView picture;
@@ -82,7 +81,6 @@ public class MainActivity extends AppCompatActivity
         setContentView(R.layout.activity_main);
 
         Button takePhoto = (Button) findViewById(R.id.take_photo);
-        Button chooseFromAlbum = (Button) findViewById(R.id.choose_from_album);
         picture = (ImageView) findViewById(R.id.picture);
 
         // ---
@@ -92,19 +90,6 @@ public class MainActivity extends AppCompatActivity
 
         // 实例化传感器管理器
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-
-        // 为线性加速度传感器注册监听器
-        mSensorManager.registerListener(this,
-                mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION),
-                SensorManager.SENSOR_DELAY_GAME);
-        // 为加速度传感器注册监听器
-        mSensorManager.registerListener(this,
-                mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
-                SensorManager.SENSOR_DELAY_GAME);
-        // 为地磁场传感器注册监听器
-        mSensorManager.registerListener(this,
-                mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
-                SensorManager.SENSOR_DELAY_GAME);
 
         takePhoto.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -150,30 +135,30 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
-        chooseFromAlbum.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // 点击 chooseFromAlbum 按钮，则动态申请 WRITE_EXTERNAL_STAROGE 权限，
-                // 授予程序对 SD 卡读写的能力。
-                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                        != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
-                } else {
-                    openAlbum();
-                }
-            }
-        });
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        // 为线性加速度传感器注册监听器
+        mSensorManager.registerListener(this,
+                mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION),
+                SensorManager.SENSOR_DELAY_GAME);
+        // 为加速度传感器注册监听器
+        mSensorManager.registerListener(this,
+                mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
+                SensorManager.SENSOR_DELAY_GAME);
+        // 为地磁场传感器注册监听器
+        mSensorManager.registerListener(this,
+                mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
+                SensorManager.SENSOR_DELAY_GAME);
     }
 
+
     @Override
-    protected void onStop() {
-        super.onStop();
-        // 若退出页面则注销监听器
+    protected void onDestroy() {
+        super.onDestroy();
+        // 注销监听器
         mSensorManager.unregisterListener(this);
     }
 
@@ -218,13 +203,15 @@ public class MainActivity extends AppCompatActivity
                 // 记录上一刻旋转矩阵
                 mRotationMatrix_Prev = mRotationMatrix_Cur;
 
-                // 在终端上实时刷新
+                // 在MainActivity上刷新
                 mTxtValue2.setText("mDeltaAvgAcc[].model:" + String.valueOf(Math.sqrt(mDeltaAvgAcc[0] * mDeltaAvgAcc[0] + mDeltaAvgAcc[1] * mDeltaAvgAcc[1] + mDeltaAvgAcc[2] * mDeltaAvgAcc[2])));
                 mTxtValue3.setText("mAccVel[].model:" + String.valueOf(Math.sqrt(mAccVel[0] * mAccVel[0] + mAccVel[1] * mAccVel[1] + mAccVel[2] * mAccVel[2])));
                 mTxtValue1.setText("mDeltaDisp[].model:" + String.valueOf(Math.sqrt(mDeltaDisp[0] * mDeltaDisp[0] + mDeltaDisp[1] * mDeltaDisp[1] + mDeltaDisp[2] * mDeltaDisp[2])));
 
-//                mAccVel = new double[3];
-//                mDeltaDisp = new double[3];
+                Log.w(TAG, "onSensorChanged: mDeltaTime:" + mDeltaTime);
+
+                mAccVel = new double[3];
+                mDeltaDisp = new double[3];
 
                 break;
             case Sensor.TYPE_ACCELEROMETER:
@@ -259,23 +246,8 @@ public class MainActivity extends AppCompatActivity
                     } catch (FileNotFoundException e) {
                         e.printStackTrace();
                     }
-
                     // 广播通知图库刷新
                     // todo
-
-                }
-
-                break;
-            case CHOOSE_PHOTO:
-                if (resultCode == RESULT_OK) {
-                    // 判断手机系统版本号
-                    if (Build.VERSION.SDK_INT >= 19) {
-                        // 4.4及以上系统使用此方法处理图片
-                        handleImageOnKitKat(data);
-                    } else {
-                        // 4.4以下系统使用此方法处理图片
-                        handleImageBeforeKitKat(data);
-                    }
                 }
                 break;
             default:
@@ -283,83 +255,6 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
-
-    private void openAlbum() {
-        Intent intent = new Intent("android.intent.action.GET_CONTENT");
-        intent.setType("image/*");
-        // 传回图片时，保证 onActivityResult() 进入 CHOOSE_PHOTO 的 case，以处理图片。
-        startActivityForResult(intent, CHOOSE_PHOTO);  // 打开相册
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        switch (requestCode) {
-            case 1:
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    openAlbum();
-                } else {
-                    Toast.makeText(this, "You denied the permission", Toast.LENGTH_SHORT).show();
-                }
-                break;
-            default:
-        }
-    }
-
-    @TargetApi(19)
-    private void handleImageOnKitKat(Intent data) {
-        String imagePath = null;
-        Uri uri = data.getData();
-        if (DocumentsContract.isDocumentUri(this, uri)) {
-            // 若 document 类型的Uri，则通过 document id 处理
-            String docId = DocumentsContract.getDocumentId(uri);
-            // 若 Uri 的 authority 是 meida 格式，document id 则需再一次解析，
-            if ("com.android.providers.media.documents".equals(uri.getAuthority())) {
-                // 通过字符串分割的方法取出后半部分，才能得到真正的数字 id。
-                String id = docId.split(":")[1];  // 解析数字格式的 id
-                // 构建新的 Uri 和条件语句。
-                String selection = MediaStore.Images.Media._ID + "=" + id;
-                imagePath = getImagePath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, selection);
-            } else if ("com.android.providers.downloads.documents".equals(uri.getAuthority())) {
-                Uri contentUri = ContentUris.withAppendedId(Uri.parse("content://download/public_downloads"), Long.valueOf(docId));
-                imagePath = getImagePath(contentUri, null);
-            }
-        } else if ("content".equalsIgnoreCase(uri.getScheme())) {
-            // 若 content 类型的 Uri，则使用普通方式处理
-            imagePath = getImagePath(uri, null);
-        } else if ("file".equalsIgnoreCase(uri.getScheme())) {
-            // 若 file 类型的 Uri，直接获取图片路径
-            imagePath = uri.getPath();
-        }
-        displayImage(imagePath);  // 根据图片路径显示图片
-    }
-
-    private void handleImageBeforeKitKat(Intent data) {
-        Uri uri = data.getData();
-        String imagePath = getImagePath(uri, null);
-        displayImage(imagePath);
-    }
-
-    private String getImagePath(Uri uri, String selection) {
-        String path = null;
-        // 通过 Uri 和 selection 来获取图片的实际路径
-        Cursor cursor = getContentResolver().query(uri, null, selection, null, null);
-        if (cursor != null) {
-            if (cursor.moveToFirst()) {
-                path = cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA));
-            }
-            cursor.close();
-        }
-        return path;
-    }
-
-    private void displayImage(String imagePath) {
-        if (imagePath != null) {
-            Bitmap bitmap = BitmapFactory.decodeFile(imagePath);
-            picture.setImageBitmap(bitmap);
-        } else {
-            Toast.makeText(this, "[MainActivity-displayImage()]failed to get image", Toast.LENGTH_SHORT).show();
-        }
-    }
 
     /**
      * 使用方向传感器，及其他数据来源，计算方向
@@ -403,14 +298,13 @@ public class MainActivity extends AppCompatActivity
      * 将本次测距结果加入 mPointsDisp
      */
     private void fetchValues() {
-//        mPointsDisp.add(Math.sqrt(mDeltaDisp[0] * mDeltaDisp[0] + mDeltaDisp[1] * mDeltaDisp[1] + mDeltaDisp[2] * mDeltaDisp[2]));
-//        mTxtValue1.setText(mPointsDisp
-//                .get(mPointsDisp.size()-1)
-//                .toString());
+        mPointsDisp.add(Math.sqrt(mDeltaDisp[0] * mDeltaDisp[0] + mDeltaDisp[1] * mDeltaDisp[1] + mDeltaDisp[2] * mDeltaDisp[2]));
+        mTxtValue1.setText(mPointsDisp
+                .get(mPointsDisp.size()-1)
+                .toString());
 
         Log.w(TAG, "fetchValues: mAccVel: " + (mAccVel[0] * mAccVel[0] + mAccVel[1] * mAccVel[1] + mAccVel[2] * mAccVel[2]));
         Log.w(TAG, "fetchValues: mPointsDisp.size(" + mPointsDisp.size() + "), " + "mPointsDisp: " + mPointsDisp);
-
     }
 
 

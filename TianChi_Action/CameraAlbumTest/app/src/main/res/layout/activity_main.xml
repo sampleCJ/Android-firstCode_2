@@ -13,12 +13,6 @@
         android:layout_height="wrap_content"
         android:text="[res]Take Photo" />
 
-    <Button
-        android:id="@+id/choose_from_album"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="[res]Choose From Album" />
-
     <TextView
         android:id="@+id/txt_value2"
         android:layout_width="match_parent"
@@ -34,7 +28,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"/>
-
 
     <ImageView
         android:id="@+id/picture"
