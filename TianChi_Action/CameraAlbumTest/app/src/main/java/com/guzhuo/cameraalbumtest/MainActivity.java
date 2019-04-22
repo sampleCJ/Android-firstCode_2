@@ -56,19 +56,21 @@ public class MainActivity extends AppCompatActivity
     private Sensor mAccelerometerSensor;
     private Sensor mMagneticSensor;
 
+    // 记录某一刻传感器值的中间变量
     private float[] mAccelerometerValues = new float[3];
     private float[] mMagneticVaglues = new float[3];
     private float[] mRotationMatrix_Cur = new float[9];
     private float[] mRotationMatrix_Prev = new float[9];
 
-    // 计算手机偏移量，相关变量
+    // 以下变量用于辅助计算，手机偏移量
     private double[] mDeltaAvgAcc = new double[3];  // 任一切片时间内，加速度的变化量
     private double[] mAccVel;  // 由连续切片间，累加的速度
     private double[] mDeltaDisp;  // 由连续切片间，累加的位移
-    private List<Double> mPointsDisp;  // 不同拍照地点之间的距离
     private float[] mAcc_Prev = new float[3];  // 前一刻的加速度值
-    private double mPrevTime;  // 前一刻的时间
+    private double mPrevTime;  // 前一切片末的时间
     private double mDeltaTime;  //前后刻的变化时间，一般作切片时间的区长
+
+    private List<Double> mPointsDisp;  // 不同拍照地点之间的距离
 
     private TextView mTxtValue1;
     private TextView mTxtValue2;
@@ -82,8 +84,6 @@ public class MainActivity extends AppCompatActivity
 
         Button takePhoto = (Button) findViewById(R.id.take_photo);
         picture = (ImageView) findViewById(R.id.picture);
-
-        // ---
         mTxtValue1 = (TextView) findViewById(R.id.txt_value1);
         mTxtValue2 = (TextView) findViewById(R.id.txt_value2);
         mTxtValue3 = (TextView) findViewById(R.id.txt_value3);
@@ -96,7 +96,7 @@ public class MainActivity extends AppCompatActivity
             public void onClick(View v) {
                 /**
                  * 首次，初始化代数因子
-                 * 此外，获取最新代数，及将 mDeltaDisp 置0
+                 * 他次，获取最新代数，及将 mDeltaDisp 置0
                  */
                 initValues();
 
